@@ -1,76 +1,129 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MKtoPDF - Markdown to PDF Engine</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- KaTeX CSS for Math Rendering -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV" crossorigin="anonymous">
-    <!-- Highlight.js CSS for Syntax Highlighting -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
-    
-    <style>
-      /* Basic styles for preview content to look decent before full theming */
-      .prose-preview h1 { font-size: 2em; font-weight: bold; margin-bottom: 0.5em; margin-top: 1em; }
-      .prose-preview h2 { font-size: 1.5em; font-weight: bold; margin-bottom: 0.5em; margin-top: 1em; }
-      .prose-preview h3 { font-size: 1.17em; font-weight: bold; margin-bottom: 0.5em; margin-top: 1em; }
-      .prose-preview p { margin-bottom: 1em; line-height: 1.6; }
-      .prose-preview ul { list-style-type: disc; margin-left: 1.5em; margin-bottom: 1em; }
-      .prose-preview ol { list-style-type: decimal; margin-left: 1.5em; margin-bottom: 1em; }
-      .prose-preview blockquote { border-left: 4px solid #ccc; padding-left: 1em; color: #666; font-style: italic; }
-      .prose-preview table { border-collapse: collapse; width: 100%; margin-bottom: 1em; }
-      .prose-preview th, .prose-preview td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-      .prose-preview th { background-color: #f2f2f2; }
-      .prose-preview code { background-color: #f4f4f4; padding: 2px 4px; border-radius: 4px; font-family: monospace; }
-      .prose-preview pre { background-color: #f6f8fa; padding: 1em; border-radius: 4px; overflow-x: auto; margin-bottom: 1em; }
-      .prose-preview pre code { background-color: transparent; padding: 0; }
-      
-      /* KaTeX specific fixes if needed */
-      .katex-display { overflow-x: auto; overflow-y: hidden; }
 
-      /* CodeMirror Overrides */
-      .cm-editor { height: 100%; }
-      .cm-scroller { overflow: auto !important; }
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MKtoPDF - Markdown to PDF Engine</title>
+  <!-- KaTeX CSS for Math Rendering -->
+  <link rel="stylesheet" href="/katex.min.css">
+  <!-- KaTeX JS for Main-Thread Math Rendering -->
+  <script defer src="/katex.min.js"></script>
+  <script defer src="/contrib/auto-render.min.js" onload="window.__renderMathInElement = renderMathInElement;"></script>
+  <!-- Highlight.js CSS for Syntax Highlighting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
 
-      /* Mermaid Centering */
-      .mermaid-diagram { display: flex; justify-content: center; margin: 1.5em 0; }
-    </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react-dom/": "https://esm.sh/react-dom@18.2.0/",
-    "react": "https://esm.sh/react@18.2.0",
-    "react/": "https://esm.sh/react@18.2.0/",
-    "vitest": "https://esm.sh/vitest@^4.0.18",
-    "rehype-katex": "https://esm.sh/rehype-katex@^7.0.1",
-    "rehype-highlight": "https://esm.sh/rehype-highlight@^7.0.0",
-    "remark-gfm": "https://esm.sh/remark-gfm@^4.0.1",
-    "remark-math": "https://esm.sh/remark-math@^6.0.0",
-    "unified": "https://esm.sh/unified@^11.0.5",
-    "dompurify": "https://esm.sh/dompurify@^3.3.1",
-    "rehype-stringify": "https://esm.sh/rehype-stringify@^10.0.1",
-    "remark-rehype": "https://esm.sh/remark-rehype@^11.1.2",
-    "remark-parse": "https://esm.sh/remark-parse@^11.0.0",
-    "clsx": "https://esm.sh/clsx@2.1.0",
-    "lucide-react": "https://esm.sh/lucide-react@0.344.0",
-    "mermaid": "https://esm.sh/mermaid@10.9.0",
-    "pagedjs": "https://esm.sh/pagedjs@0.4.3",
-    "@uiw/react-codemirror": "https://esm.sh/@uiw/react-codemirror@4.21.25?external=react,react-dom",
-    "@codemirror/lang-markdown": "https://esm.sh/@codemirror/lang-markdown@6.2.4?external=@codemirror/state,@codemirror/language,@codemirror/view",
-    "@codemirror/language": "https://esm.sh/@codemirror/language@6.10.1",
-    "@codemirror/state": "https://esm.sh/@codemirror/state@6.4.1",
-    "@codemirror/view": "https://esm.sh/@codemirror/view@6.24.1",
-    "@codemirror/commands": "https://esm.sh/@codemirror/commands@6.3.3",
-    "@testing-library/react": "https://esm.sh/@testing-library/react@^16.3.2"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
+  <style>
+    /* Basic styles for preview content to look decent before full theming */
+    .prose-preview h1 {
+      font-size: 2em;
+      font-weight: bold;
+      margin-bottom: 0.5em;
+      margin-top: 1em;
+    }
+
+    .prose-preview h2 {
+      font-size: 1.5em;
+      font-weight: bold;
+      margin-bottom: 0.5em;
+      margin-top: 1em;
+    }
+
+    .prose-preview h3 {
+      font-size: 1.17em;
+      font-weight: bold;
+      margin-bottom: 0.5em;
+      margin-top: 1em;
+    }
+
+    .prose-preview p {
+      margin-bottom: 1em;
+      line-height: 1.6;
+    }
+
+    .prose-preview ul {
+      list-style-type: disc;
+      margin-left: 1.5em;
+      margin-bottom: 1em;
+    }
+
+    .prose-preview ol {
+      list-style-type: decimal;
+      margin-left: 1.5em;
+      margin-bottom: 1em;
+    }
+
+    .prose-preview blockquote {
+      border-left: 4px solid #ccc;
+      padding-left: 1em;
+      color: #666;
+      font-style: italic;
+    }
+
+    .prose-preview table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-bottom: 1em;
+    }
+
+    .prose-preview th,
+    .prose-preview td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+
+    .prose-preview th {
+      background-color: #f2f2f2;
+    }
+
+    .prose-preview code {
+      background-color: #f4f4f4;
+      padding: 2px 4px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+
+    .prose-preview pre {
+      background-color: #f6f8fa;
+      padding: 1em;
+      border-radius: 4px;
+      overflow-x: auto;
+      margin-bottom: 1em;
+    }
+
+    .prose-preview pre code {
+      background-color: transparent;
+      padding: 0;
+    }
+
+    /* KaTeX specific fixes if needed */
+    .katex-display {
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+
+    /* CodeMirror Overrides */
+    .cm-editor {
+      height: 100%;
+    }
+
+    .cm-scroller {
+      overflow: auto !important;
+    }
+
+    /* Mermaid Centering */
+    .mermaid-diagram {
+      display: flex;
+      justify-content: center;
+      margin: 1.5em 0;
+    }
+  </style>
 </head>
-  <body>
-    <div id="root"></div>
+
+<body>
+  <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>
+
 </html>

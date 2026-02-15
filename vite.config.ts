@@ -13,7 +13,8 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
-      }
+      },
+      conditions: ['worker', 'browser', 'import', 'module', 'default']
     }
   };
 });

@@ -58,7 +58,7 @@ export const useExport = () => {
 <html>
   <head>
     <title>MKtoPDF Export</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <link rel="stylesheet" href="/katex.min.css">
     <style>${PRINT_STYLES}</style>
     <style>
       /* Hide PagedJS preview UI elements in the iframe */
@@ -76,10 +76,10 @@ export const useExport = () => {
 
       // 3. Run Paged.js
       const previewer = new Previewer();
-      
+
       await previewer.preview(
-        doc.getElementById('print-content'), 
-        ['/styles/print.css'], 
+        doc.getElementById('print-content'),
+        ['/styles/print.css'],
         doc.body
       );
 
@@ -87,8 +87,8 @@ export const useExport = () => {
       setTimeout(() => {
         iframe.contentWindow?.print();
         setTimeout(() => {
-            document.body.removeChild(iframe);
-            setIsExporting(false);
+          document.body.removeChild(iframe);
+          setIsExporting(false);
         }, 1000);
       }, 500);
 

@@ -1,3 +1,6 @@
+/**
+ * @vitest-environment jsdom
+ */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useExport } from '../hooks/useExport';
 import { useLocalStorage } from '../hooks/useLocalStorage';
@@ -22,7 +25,7 @@ describe('useLocalStorage Hook', () => {
 
   it('should update localStorage when value changes', () => {
     const { result } = renderHook(() => useLocalStorage('test-key', 'initial'));
-    
+
     act(() => {
       result.current[1]('updated');
     });

@@ -1,4 +1,4 @@
-import { parseMarkdown } from '../lib/markdownEngine';
+import { parseMarkdown } from '../lib/markdownParser';
 
 /**
  * Worker message handler.
@@ -6,7 +6,7 @@ import { parseMarkdown } from '../lib/markdownEngine';
  */
 self.onmessage = async (e: MessageEvent) => {
   const content = e.data;
-  
+
   // Basic validation
   if (typeof content !== 'string') {
     return;
