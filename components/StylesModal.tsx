@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, RotateCcw, Palette, Type, Layout, MessageSquare } from 'lucide-react';
+import { X, RotateCcw, Palette, Type, Layout, MessageSquare, FileText } from 'lucide-react';
 import { StyleSettings, DEFAULT_STYLE_SETTINGS, CALLOUT_TYPES } from '../lib/styleSettings';
 import clsx from 'clsx';
 
@@ -10,13 +10,14 @@ interface StylesModalProps {
     onSettingsChange: (settings: StyleSettings) => void;
 }
 
-type TabId = 'typography' | 'colors' | 'callouts' | 'layout';
+type TabId = 'typography' | 'colors' | 'callouts' | 'layout' | 'export';
 
 const TABS: { id: TabId; label: string; icon: React.FC<any> }[] = [
     { id: 'typography', label: 'Typography', icon: Type },
     { id: 'colors', label: 'Colors', icon: Palette },
     { id: 'callouts', label: 'Callouts', icon: MessageSquare },
     { id: 'layout', label: 'Layout', icon: Layout },
+    { id: 'export', label: 'Header & Footer', icon: FileText },
 ];
 
 const ColorInput: React.FC<{
@@ -70,6 +71,24 @@ const SliderInput: React.FC<{
             value={value}
             onChange={(e) => onChange(Number(e.target.value))}
             className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+        />
+    </div>
+);
+
+const TextInput: React.FC<{
+    label: string;
+    value: string;
+    onChange: (v: string) => void;
+    placeholder?: string;
+}> = ({ label, value, onChange, placeholder }) => (
+    <div className="space-y-1.5">
+        <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</label>
+        <input
+            type="text"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
         />
     </div>
 );
@@ -179,13 +198,13 @@ export const StylesModal: React.FC<StylesModalProps> = ({
                 </div>
 
                 {/* Tabs */}
-                <div className="flex border-b border-gray-100 px-6 gap-1 bg-gray-50/50">
+                <div className="flex border-b border-gray-100 px-6 gap-1 bg-gray-50/50 overflow-x-auto no-scrollbar">
                     {TABS.map((tab) => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             className={clsx(
-                                'flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all border-b-2 -mb-px',
+                                'flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all border-b-2 -mb-px whitespace-nowrap',
                                 activeTab === tab.id
                                     ? 'border-indigo-500 text-indigo-600'
                                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -384,6 +403,66 @@ export const StylesModal: React.FC<StylesModalProps> = ({
                                 </div>
                             </div>
                         </div>
+                    )}
+
+                    {activeTab === 'export' && (
+                      <div className="space-y-6">
+                        <div className="bg-blue-50 p-3 rounded-lg text-sm text-blue-700 border border-blue-100">
+                           Use <code>counter(page)</code> to display the current page number.
+                        </div>
+
+                        <div>
+                            <h3 className="text-sm font-semibold text-gray-700 mb-3 border-b pb-2">Header</h3>
+                            <div className="grid grid-cols-3 gap-3">
+                                <TextInput
+                                    label="Left"
+                                    value={localSettings.headerLeft}
+                                    onChange={(v) => update({ headerLeft: v })}
+                                    placeholder="Title"
+                                />
+                                <TextInput
+                                    label="Center"
+                                    value={localSettings.headerCenter}
+                                    onChange={(v) => update({ headerCenter: v })}
+                                    placeholder=""
+                                />
+                                <TextInput
+                                    label="Right"
+                                    value={localSettings.headerRight}
+                                    onChange={(v) => update({ headerRight: v })}
+                                    placeholder="Date"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3 className="text-sm font-semibold text-gray-700 mb-3 border-b pb-2">Footer</h3>
+                            <div className="grid grid-cols-3 gap-3">
+                                <TextInput
+                                    label="Left"
+                                    value={localSettings.footerLeft}
+                                    onChange={(v) => update({ footerLeft: v })}
+                                    placeholder="Confidential"
+                                />
+                                <TextInput
+                                    label="Center"
+                                    value={localSettings.footerCenter}
+                                    onChange={(v) => update({ footerCenter: v })}
+                                    placeholder="- Page -"
+                                />
+                                <TextInput
+                                    label="Right"
+                                    value={localSettings.footerRight}
+                                    onChange={(v) => update({ footerRight: v })}
+                                    placeholder='counter(page)'
+                                />
+                            </div>
+                        </div>
+
+                        <div className="pt-2 text-xs text-gray-400">
+                            These settings apply to PDF export and Page Preview.
+                        </div>
+                      </div>
                     )}
                 </div>
 

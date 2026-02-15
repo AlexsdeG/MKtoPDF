@@ -25,6 +25,14 @@ export interface StyleSettings {
     maxContentWidth: number; // in px (600-1200)
     paragraphAlign: 'left' | 'justify';
 
+    // Header & Footer
+    headerLeft: string;
+    headerCenter: string;
+    headerRight: string;
+    footerLeft: string;
+    footerCenter: string;
+    footerRight: string;
+
     // Callout overrides (optional per-type color overrides)
     calloutColors: Partial<Record<string, string>>;
 }
@@ -46,6 +54,12 @@ export const DEFAULT_STYLE_SETTINGS: StyleSettings = {
     codeBgColor: '#f6f8fa',
     maxContentWidth: 900,
     paragraphAlign: 'left',
+    headerLeft: '',
+    headerCenter: '',
+    headerRight: '',
+    footerLeft: '',
+    footerCenter: '',
+    footerRight: '',
     calloutColors: {},
 };
 
@@ -76,6 +90,13 @@ export function stylesToCSSVars(settings: StyleSettings): Record<string, string>
         '--md-code-bg': settings.codeBgColor,
         '--md-max-width': `${settings.maxContentWidth}px`,
         '--md-p-align': settings.paragraphAlign,
+        // Header & Footer content
+        '--md-header-left': `"${settings.headerLeft}"`,
+        '--md-header-center': `"${settings.headerCenter}"`,
+        '--md-header-right': `"${settings.headerRight}"`,
+        '--md-footer-left': `"${settings.footerLeft}"`,
+        '--md-footer-center': `"${settings.footerCenter}"`,
+        '--md-footer-right': `"${settings.footerRight}"`,
     };
 }
 

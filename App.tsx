@@ -4,6 +4,7 @@ import { EditorPane } from './components/EditorPane';
 import { PreviewPane } from './components/PreviewPane';
 import { Toolbar } from './components/Toolbar';
 import { StylesModal } from './components/StylesModal';
+import { PagePreviewModal } from './components/PagePreviewModal';
 import { EditorView } from '@codemirror/view';
 import { sanitizeHtml } from './lib/markdownEngine';
 import { parseMarkdown } from './lib/markdownParser';
@@ -11,7 +12,7 @@ import { useExport } from './hooks/useExport';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { ViewMode } from './types';
 import { StyleSettings, DEFAULT_STYLE_SETTINGS } from './lib/styleSettings';
-import { Printer, Save, RefreshCw, Palette } from 'lucide-react';
+import { Printer, Save, RefreshCw, Palette, Edit2, Link as LinkIcon, Unlink } from 'lucide-react';
 import clsx from 'clsx';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
@@ -88,13 +89,68 @@ const App: React.FC = () => {
   const [markdownInput, setMarkdownInput] = useLocalStorage<string>('MD_DRAFT_BUFFER', DEFAULT_MARKDOWN);
   const [viewMode, setViewMode] = useLocalStorage<ViewMode>('MD_VIEW_MODE', 'split');
   const [styleSettings, setStyleSettings] = useLocalStorage<StyleSettings>('MD_STYLE_SETTINGS', DEFAULT_STYLE_SETTINGS);
+  const [documentTitle, setDocumentTitle] = useLocalStorage<string>('MD_DOC_TITLE', 'Untitled Document');
+  const [isSyncScrollEnabled, setIsSyncScrollEnabled] = useLocalStorage<boolean>('MD_SYNC_SCROLL', true);
 
   const [htmlOutput, setHtmlOutput] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [editorView, setEditorView] = useState<EditorView | null>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+  
+  // Modal states
   const [isStylesOpen, setIsStylesOpen] = useState(false);
+  const [isPagePreviewOpen, setIsPagePreviewOpen] = useState(false);
+  
+  // Title editing state
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   const { printPdf, isExporting } = useExport();
+
+  // Scroll Sync Ref
+  const isScrollingRef = useRef(false);
+
+  // Sync scroll effect
+  useEffect(() => {
+    if (!isSyncScrollEnabled || viewMode !== 'split' || !editorView || !previewRef.current) return;
+
+    const editorScroller = editorView.scrollDOM;
+    const previewScroller = previewRef.current;
+
+    const syncEditorToPreview = () => {
+      if (isScrollingRef.current) return;
+      isScrollingRef.current = true;
+      
+      const percentage = previewScroller.scrollTop / (previewScroller.scrollHeight - previewScroller.clientHeight);
+      const targetScrollTop = percentage * (editorScroller.scrollHeight - editorScroller.clientHeight);
+      
+      editorScroller.scrollTop = targetScrollTop;
+      
+      // Debounce reset
+      setTimeout(() => { isScrollingRef.current = false; }, 50);
+    };
+
+    const syncPreviewToEditor = () => {
+      if (isScrollingRef.current) return;
+      isScrollingRef.current = true;
+      
+      const percentage = editorScroller.scrollTop / (editorScroller.scrollHeight - editorScroller.clientHeight);
+      const targetScrollTop = percentage * (previewScroller.scrollHeight - previewScroller.clientHeight);
+      
+      previewScroller.scrollTop = targetScrollTop;
+      
+      // Debounce reset
+      setTimeout(() => { isScrollingRef.current = false; }, 50);
+    };
+
+    editorScroller.addEventListener('scroll', syncPreviewToEditor);
+    previewScroller.addEventListener('scroll', syncEditorToPreview);
+
+    return () => {
+      editorScroller.removeEventListener('scroll', syncPreviewToEditor);
+      previewScroller.removeEventListener('scroll', syncEditorToPreview);
+    };
+  }, [isSyncScrollEnabled, viewMode, editorView]);
 
   // Worker and fallback references
   const workerRef = useRef<Worker | null>(null);
@@ -184,7 +240,7 @@ const App: React.FC = () => {
   const handleExport = () => {
     const previewElement = document.querySelector('.prose-preview');
     const contentToPrint = previewElement ? previewElement.innerHTML : htmlOutput;
-    printPdf(contentToPrint, orientation);
+    printPdf(contentToPrint, orientation, styleSettings, documentTitle);
   };
 
   const handleReset = () => {
@@ -193,23 +249,70 @@ const App: React.FC = () => {
     }
   };
 
+  // Title edit handling
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+    }
+  }, [isEditingTitle]);
+
+  const handleTitleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsEditingTitle(false);
+  };
+
   return (
     <ErrorBoundary>
       <div className="h-screen w-screen flex flex-col bg-gray-50 text-gray-900 font-sans overflow-hidden">
         <Toaster position="bottom-right" richColors />
+        
+        {/* Modals */}
         <StylesModal
           isOpen={isStylesOpen}
           onClose={() => setIsStylesOpen(false)}
           settings={styleSettings}
           onSettingsChange={setStyleSettings}
         />
+        <PagePreviewModal 
+          isOpen={isPagePreviewOpen}
+          onClose={() => setIsPagePreviewOpen(false)}
+          htmlContent={htmlOutput}
+          orientation={orientation}
+          styleSettings={styleSettings}
+        />
+
         {/* Header */}
         <header className="h-14 bg-white border-b border-gray-200 flex items-center px-4 justify-between shadow-sm z-10 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+          <div className="flex items-center gap-2 max-w-[40%]">
+            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 flex-shrink-0">
               MKtoPDF
             </span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">v0.6.0</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 flex-shrink-0">v0.6.2</span>
+            
+            <div className="h-6 w-px bg-gray-300 mx-2 flex-shrink-0"></div>
+            
+            {/* Editable Title */}
+            {isEditingTitle ? (
+              <form onSubmit={handleTitleSubmit} className="flex-1 min-w-0">
+                <input
+                  ref={titleInputRef}
+                  type="text"
+                  value={documentTitle}
+                  onChange={(e) => setDocumentTitle(e.target.value)}
+                  onBlur={() => setIsEditingTitle(false)}
+                  className="w-full px-2 py-1 text-sm font-medium border border-blue-400 rounded focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+              </form>
+            ) : (
+                <button 
+                  onClick={() => setIsEditingTitle(true)}
+                  className="group flex items-center gap-2 hover:bg-gray-100 px-2 py-1 rounded transition-colors truncate min-w-0"
+                  title="Click to rename"
+                >
+                  <span className="text-sm font-medium text-gray-700 truncate">{documentTitle}</span>
+                  <Edit2 size={12} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                </button>
+            )}
           </div>
 
           <div className="flex bg-gray-100 p-1 rounded-lg">
@@ -239,6 +342,22 @@ const App: React.FC = () => {
             )}
 
             <div className="h-4 w-px bg-gray-300 mx-1"></div>
+
+            {/* Sync Scroll Button (Only visible in Split mode) */}
+            {viewMode === 'split' && (
+               <button
+                 onClick={() => setIsSyncScrollEnabled(!isSyncScrollEnabled)}
+                 className={clsx(
+                   "p-1.5 rounded transition-colors",
+                   isSyncScrollEnabled 
+                     ? "text-blue-600 bg-blue-50" 
+                     : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                 )}
+                 title={isSyncScrollEnabled ? "Sync Scroll On" : "Sync Scroll Off"}
+               >
+                 {isSyncScrollEnabled ? <LinkIcon size={16} /> : <Unlink size={16} />}
+               </button>
+            )}
 
             <button
               onClick={() => setIsStylesOpen(true)}
@@ -292,7 +411,11 @@ const App: React.FC = () => {
             viewMode === 'split' ? "w-1/2" : "w-full"
           )}>
             {/* Toolbar - Only visible in editor/split mode */}
-            <Toolbar editorView={editorView} />
+            {/* Pass onOpenPagePreview callback */}
+            <Toolbar 
+              editorView={editorView} 
+              onOpenPagePreview={() => setIsPagePreviewOpen(true)} 
+            />
 
             <div className="flex-1 overflow-hidden">
               <EditorPane
@@ -309,7 +432,12 @@ const App: React.FC = () => {
             viewMode === 'editor' ? "hidden" : "block",
             viewMode === 'split' ? "w-1/2" : "w-full"
           )}>
-            <PreviewPane htmlContent={htmlOutput} styleSettings={styleSettings} />
+            {/* Forward ref to get scroll container */}
+            <PreviewPane 
+                ref={previewRef}
+                htmlContent={htmlOutput} 
+                styleSettings={styleSettings} 
+            />
           </div>
 
         </main>

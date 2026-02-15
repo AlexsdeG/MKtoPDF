@@ -1,235 +1,134 @@
 import { useState, useCallback } from 'react';
-
-// Injection of styles directly because cross-domain/blob stylesheet references can be flaky.
-const GET_PRINT_STYLES = (orientation: 'portrait' | 'landscape') => `
-  @page {
-    size: A4 ${orientation};
-    margin: 20mm;
-
-    @bottom-right {
-      content: counter(page) " / " counter(pages);
-      font-size: 9pt;
-      font-family: ui-sans-serif, system-ui, sans-serif;
-      color: #888;
-    }
-  }
-
-  /* Reset body margins for print */
-  body {
-    margin: 0;
-    padding: 0;
-    font-family: ui-sans-serif, system-ui, sans-serif;
-    line-height: 1.6;
-    color: #333;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  /* Content Styles - matching the preview pane look but optimized for print */
-  h1 { font-size: 24pt; font-weight: bold; margin-bottom: 0.5em; page-break-after: avoid; break-after: avoid; }
-  h2 { font-size: 18pt; font-weight: bold; margin-top: 1.5em; margin-bottom: 0.5em; page-break-after: avoid; break-after: avoid; border-bottom: 1px solid #eee; padding-bottom: 0.2em; }
-  h3 { font-size: 14pt; font-weight: bold; margin-top: 1.2em; margin-bottom: 0.5em; page-break-after: avoid; break-after: avoid; }
-  
-  p { margin-bottom: 1em; text-align: justify; }
-  
-  pre { 
-    background: #f6f8fa; 
-    padding: 1em; 
-    border: 1px solid #ddd; 
-    border-radius: 4px; 
-    white-space: pre-wrap; 
-    break-inside: avoid; 
-    font-family: monospace; 
-    font-size: 0.9em;
-  }
-  
-  code { 
-    font-family: monospace; 
-    background: #f1f1f1; 
-    padding: 0.2em 0.4em; 
-    border-radius: 3px; 
-    font-size: 0.9em; 
-  }
-  
-  blockquote { 
-    border-left: 4px solid #ddd; 
-    padding-left: 1em; 
-    color: #666; 
-    font-style: italic;
-    margin-left: 0;
-  }
-  
-  table { 
-    width: 100%; 
-    border-collapse: collapse; 
-    margin: 1em 0; 
-    break-inside: avoid; 
-    font-size: 0.95em;
-  }
-  
-  th, td { 
-    border: 1px solid #ccc; 
-    padding: 8px; 
-    text-align: left; 
-  }
-  
-  th { 
-    background: #f0f0f0; 
-    font-weight: bold; 
-  }
-  
-  img, svg { 
-    max-width: 100%; 
-    height: auto; 
-    break-inside: avoid; 
-    display: block; 
-    margin: 1em auto; 
-  }
-
-  /* Mermaid diagram spacing */
-  .mermaid-diagram {
-    display: flex;
-    justify-content: center;
-    margin: 2em 0;
-    break-inside: avoid;
-  }
-
-  ul, ol { margin-left: 1.5em; margin-bottom: 1em; }
-  li { margin-bottom: 0.25em; }
-  
-  .katex-display { overflow-x: auto; overflow-y: hidden; padding: 1em 0; break-inside: avoid; }
-
-  /* Obsidian Callout Blocks */
-  .callout {
-    border: 1px solid color-mix(in srgb, var(--callout-color, #448aff) 30%, transparent);
-    border-left: 4px solid var(--callout-color, #448aff);
-    border-radius: 8px;
-    margin: 1em 0;
-    overflow: hidden;
-    background: color-mix(in srgb, var(--callout-color, #448aff) 5%, white);
-    break-inside: avoid;
-  }
-  .callout-title {
-    display: flex;
-    align-items: center;
-    gap: 0.4em;
-    padding: 0.5em 0.8em;
-    font-weight: 700;
-    font-size: 0.9em;
-    color: var(--callout-color, #448aff);
-    background: color-mix(in srgb, var(--callout-color, #448aff) 8%, white);
-    border-bottom: 1px solid color-mix(in srgb, var(--callout-color, #448aff) 12%, transparent);
-  }
-  .callout-icon { font-size: 1em; }
-  .callout-content {
-    padding: 0.6em 0.8em;
-    font-size: 0.9em;
-  }
-  .callout-content > p:last-child { margin-bottom: 0; }
-  .callout-content > p:first-child { margin-top: 0; }
-
-  /* Highlight / Mark */
-  mark {
-    background: #fef08a;
-    padding: 0.1em 0.2em;
-    border-radius: 3px;
-    color: inherit;
-  }
-
-  /* Task Lists */
-  input[type="checkbox"] {
-    appearance: none;
-    -webkit-appearance: none;
-    width: 12px;
-    height: 12px;
-    border: 2px solid #94a3b8;
-    border-radius: 3px;
-    margin-right: 4px;
-    position: relative;
-    vertical-align: middle;
-  }
-  input[type="checkbox"]:checked {
-    background: #4f46e5;
-    border-color: #4f46e5;
-  }
-  input[type="checkbox"]:checked::after {
-    content: '✓';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 8px;
-    color: white;
-    font-weight: bold;
-  }
-
-  /* Enhanced HR */
-  hr {
-    border: none;
-    height: 2px;
-    background: linear-gradient(to right, transparent, #94a3b8, transparent);
-    margin: 1.5em 0;
-  }
-`;
+import { toast } from 'sonner';
+// @ts-ignore
+import pagedPolyfillActions from '../lib/paged.polyfill.js?raw';
+import { StyleSettings, stylesToCSSVars } from '../lib/styleSettings';
 
 export const useExport = () => {
   const [isExporting, setIsExporting] = useState(false);
 
-  const printPdf = useCallback(async (htmlContent: string, orientation: 'portrait' | 'landscape' = 'portrait') => {
+  const printPdf = useCallback(async (
+    contentHtml: string,
+    orientation: 'portrait' | 'landscape' = 'portrait',
+    settings: StyleSettings,
+    title: string = 'Document'
+  ) => {
     setIsExporting(true);
+    const toastId = toast.loading('Preparing PDF...');
 
     try {
-      // 1. Create a hidden iframe
+      // Create iframe
       const iframe = document.createElement('iframe');
       iframe.style.position = 'absolute';
-      iframe.style.width = '0px';
-      iframe.style.height = '0px';
-      iframe.style.left = '-9999px';
-      iframe.style.top = '-9999px';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = 'none';
       document.body.appendChild(iframe);
 
-      const doc = iframe.contentDocument || iframe.contentWindow?.document;
-      if (!doc) {
-        throw new Error("Could not create print iframe");
-      }
+      const doc = iframe.contentWindow?.document;
+      if (!doc) throw new Error('Could not access iframe document');
 
-      // 2. Prepare content
-      // We avoid Paged.js entirely to prevent the duplicate content bug.
-      // Modern browsers support @page CSS for headers/footers/margins.
-      const htmlDoc = `<!DOCTYPE html>
-<html>
-  <head>
-    <title>MKtoPDF Export</title>
-    <!-- We inject KaTeX CSS directly for maximum reliability -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.28/dist/katex.min.css">
-    <style>${GET_PRINT_STYLES(orientation)}</style>
-  </head>
-  <body>
-    <div id="print-content">${htmlContent}</div>
-  </body>
-</html>`;
+      // Construct CSS
+      const cssVars = stylesToCSSVars(settings);
+      const cssVarString = Object.entries(cssVars)
+        .map(([key, val]) => `${key}: ${val};`)
+        .join('\n');
 
+      const pageStyles = `
+        @page {
+          size: A4 ${orientation};
+          margin: 20mm;
+          
+          @top-left { content: var(--md-header-left); }
+          @top-center { content: var(--md-header-center); }
+          @top-right { content: var(--md-header-right); }
+          
+          @bottom-left { content: var(--md-footer-left); }
+          @bottom-center { content: var(--md-footer-center); }
+          @bottom-right { content: var(--md-footer-right); }
+        }
+
+        /* Hide PagedJS UI */
+        .pagedjs_margin-content { font-size: 9pt; color: #666; font-family: var(--md-font-family); }
+        
+        /* Reset body for printing */
+        body { margin: 0; padding: 0; background: white; }
+        
+        /* Apply variables */
+        :root { ${cssVarString} }
+        .prose-preview { ${cssVarString} }
+        
+        /* Hide UI elements during print if any leak */
+        @media print {
+            .pagedjs_pages { display: block !important; transform: none !important; }
+            .pagedjs_page { margin: 0 !important; border: none !important; box-shadow: none !important; }
+        }
+      `;
+
+      // Write content
       doc.open();
-      doc.write(htmlDoc);
+      doc.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>${title}</title>
+            <meta charset="utf-8">
+            <style>
+              ${pageStyles}
+              /* Include base styles (could be fetched or inlined differently in prod) */
+            </style>
+            <!-- Tailwind/Prose styles need to be included. For now we assume they are global or inlined -->
+            <link rel="stylesheet" href="/index.css"> 
+            
+            <script>
+              ${pagedPolyfillActions}
+            </script>
+            <script>
+              window.PagedConfig = {
+                auto: false,
+                after: (flow) => {
+                   // Ready to print
+                   setTimeout(() => {
+                     window.print();
+                     // Notify parent we are done?
+                   }, 500);
+                }
+              };
+              
+              document.addEventListener('DOMContentLoaded', () => {
+                 window.PagedPolyfill.preview();
+              });
+            </script>
+          </head>
+          <body>
+            <div class="prose-preview">
+              ${contentHtml}
+            </div>
+          </body>
+        </html>
+      `);
       doc.close();
 
-      // 3. Trigger print
-      // We give fonts/katex a moment to load and render
+      // We rely on the script inside the iframe to trigger print()
+      // Cleanup happens after print dialog closes (which pauses execution)
+      // Since we can't easily detect print dialog close cross-browser:
+      // We set a timeout to remove iframe, but usually user interaction blocks.
+      // A safer way is to listen for focus back on main window, or just leave it hidden.
+      // However, we need to reset isExporting.
+      
+      // Since print() is blocking, we can reset after a delay.
       setTimeout(() => {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-
-        // Cleanup after print dialog is closed
-        setTimeout(() => {
-          document.body.removeChild(iframe);
-          setIsExporting(false);
-        }, 1000);
-      }, 500);
+        setIsExporting(false);
+        toast.dismiss(toastId);
+        toast.success('Export completed');
+        // Clean up iframe after a delay to ensure print is done
+        setTimeout(() => document.body.removeChild(iframe), 5000); 
+      }, 2000);
 
     } catch (error) {
-      console.error("Export failed:", error);
+      console.error('Export error:', error);
+      toast.error('Failed to export PDF');
       setIsExporting(false);
-      alert("Failed to generate PDF. See console for details.");
     }
   }, []);
 

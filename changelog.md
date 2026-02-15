@@ -1,51 +1,31 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+## [0.6.2] - 2024-02-15
 
-## [0.0.5] - 2024-05-22
 ### Added
-- **Phase 5: Privacy, Performance & Persistence**
-  - **Offline Persistence**: Implemented `useLocalStorage` to automatically save the user's draft (`MD_DRAFT_BUFFER`) and view mode preference (`MD_VIEW_MODE`).
-  - **Web Worker Offloading**: Moved the heavy Markdown transformation pipeline (Unified/Remark/Rehype) to a separate Web Worker thread (`src/workers/markdown.worker.ts`) to keep the UI responsive during typing.
-  - **Sanitization Split**: Separated HTML sanitization to the main thread (DOM access required) while keeping parsing in the worker.
+- **Advanced Page Preview**: Integrated `pagedjs` for accurate pagination preview (A4 Portrait/Landscape). Page breaks and layout now simulate PDF output exactly.
+- **Improved PDF Export**: PDF export now uses `pagedjs` rendering engine via polyfill injection, ensuring consistent layout, margins, and page breaks.
+- **Header & Footer Customization**: Added new "Header & Footer" tab in Style Settings. Supports custom Left/Center/Right text and page numbers (`counter(page)`).
+- **Synchronized Scrolling**: Editor and Preview scroll positions are now synchronized in Split View. Includes a toolbar toggle button.
 
-## [0.0.4] - 2024-05-22
-### Added
-- **Phase 4: PDF Export & Paging**
-  - Integrated `pagedjs` for professional PDF generation with pagination.
-  - Added `useExport` hook to handle the printing workflow.
-  - Created `src/styles/print.css` for `@page` layout definitions.
-  - Added "Export PDF" button to the header.
-  - Implemented iframe-based print isolation to prevent UI conflicts.
+### Fixed
+- **Toolbar Dropdown Scroll**: Fixed issue where scrolling inside a dropdown would close it.
+- **Page Breaks**: Manual page breaks (`<div class="page-break"></div>`) and automatic pagination now work correctly in both preview and export.
 
-## [0.0.3] - 2024-05-22
-### Added
-- **Phase 3: Advanced Rendering**
-  - **Syntax Highlighting**: Integrated `rehype-highlight` to support colorful code blocks for common languages (JS, Python, CSS, etc.).
-  - **Mermaid Diagrams**: Added client-side rendering for `mermaid` code blocks (flowcharts, sequence diagrams, etc.) in the Preview pane.
-- **Fixes**:
-  - Fixed KaTeX "Quirks Mode" warning by enforcing strict DOCTYPE.
-  - Resolved React versioning issues in `importmap`.
+## [0.6.1] - 2024-02-15
 
-## [0.0.2] - 2024-05-22
 ### Added
-- **Phase 2: Modern Editor & Toolbar**
-  - Integrated `@uiw/react-codemirror` (CodeMirror 6) for a rich editing experience.
-  - Added syntax highlighting for Markdown.
-  - Implemented a Toolbar with formatting actions:
-    - Bold, Italic, Strikethrough
-    - Headers (H1, H2, H3)
-    - Lists (Bullet, Numbered, Task)
-    - Blockquotes, Code Blocks, Links, and Horizontal Rules.
-  - Refined Split-View layout logic.
+- **Page Preview Modal**: Visualize page breaks and layout in a paginated view.
+- **Rich Text Toolbar**: Redesigned toolbar with text color, fonts, undo/redo, etc.
+- **Improved Dropdowns**: Toolbar dropdowns now use Portals to fix clipping.
+- **Rich Text HTML Support**: Markdown engine supports inline HTML styles.
 
-## [0.0.1] - 2024-05-22
+### Changed
+- Updated App header with document title editing.
+- Enhanced StylesModal with heading/paragraph color overrides.
+
+## [0.0.5] - Previous
+
 ### Added
-- Initial project structure.
-- Phase 1: Core Markdown processing pipeline.
-  - Integration of `unified`, `remark-parse`, `remark-gfm`.
-  - Math support via `remark-math` and `rehype-katex`.
-  - HTML sanitization using `dompurify`.
-- Basic Editor and Preview components for testing the pipeline.
-- Unit tests for the markdown engine.
-- Documentation files (`knowledge.md`, `plan.md`).
+- PDF export via iframe print.
+- Auto-saving, Markdown syntax highlighting, Mermaid, KaTeX.
