@@ -1,0 +1,5 @@
+{
+  "name": "MKtoPDF",
+  "description": "A privacy-first, client-side Markdown editor and PDF generator supporting LaTeX, Mermaid diagrams, and professional paging.",
+  "requestFramePermissions": []
+}
