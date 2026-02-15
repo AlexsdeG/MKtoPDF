@@ -3,6 +3,7 @@ import { Toaster } from 'sonner';
 import { EditorPane } from './components/EditorPane';
 import { PreviewPane } from './components/PreviewPane';
 import { Toolbar } from './components/Toolbar';
+import { EditorView } from '@codemirror/view';
 import { sanitizeHtml } from './lib/markdownEngine';
 import { parseMarkdown } from './lib/markdownParser';
 import { useExport } from './hooks/useExport';
@@ -25,7 +26,7 @@ This is **Phase 5**: **Privacy & Performance**.
 
 ## Math & Diagrams
 $$
-\\sum_{i=0}^n i^2 = \\frac{(n^2+n)(2n+1)}{6}
+\sum_{i=0}^n i^2 = \frac{(n^2+n)(2n+1)}{6}
 $$
 
 \`\`\`mermaid
@@ -48,7 +49,7 @@ const App: React.FC = () => {
 
   const [htmlOutput, setHtmlOutput] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const [editorView, setEditorView] = useState<any>(null);
+  const [editorView, setEditorView] = useState<EditorView | null>(null);
 
   const { printPdf, isExporting } = useExport();
 
@@ -135,10 +136,12 @@ const App: React.FC = () => {
     };
   }, [markdownInput, processOnMainThread]);
 
+  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
+
   const handleExport = () => {
     const previewElement = document.querySelector('.prose-preview');
     const contentToPrint = previewElement ? previewElement.innerHTML : htmlOutput;
-    printPdf(contentToPrint);
+    printPdf(contentToPrint, orientation);
   };
 
   const handleReset = () => {
@@ -195,6 +198,17 @@ const App: React.FC = () => {
             >
               <RefreshCw size={16} />
             </button>
+
+            <div className="flex items-center bg-gray-100 rounded-lg p-1 ml-2">
+              <select
+                className="bg-transparent text-xs font-medium text-gray-600 outline-none px-2 py-1 cursor-pointer"
+                value={orientation}
+                onChange={(e) => setOrientation(e.target.value as 'portrait' | 'landscape')}
+              >
+                <option value="portrait">Portrait</option>
+                <option value="landscape">Landscape</option>
+              </select>
+            </div>
 
             <button
               onClick={handleExport}

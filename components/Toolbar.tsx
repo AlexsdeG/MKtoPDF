@@ -1,21 +1,22 @@
 import React from 'react';
-import { 
-  Bold, Italic, Strikethrough, 
-  Heading1, Heading2, Heading3, 
-  List, ListOrdered, CheckSquare, 
-  Quote, Code, Link, Minus 
+import {
+  Bold, Italic, Strikethrough,
+  Heading1, Heading2, Heading3,
+  List, ListOrdered, CheckSquare,
+  Quote, Code, Link, Minus
 } from 'lucide-react';
 import clsx from 'clsx';
+import { EditorView } from '@codemirror/view';
 
 interface ToolbarProps {
-  editorView: any; // CodeMirror EditorView
+  editorView: EditorView | null;
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({ editorView }) => {
-  
+
   const executeCommand = (
-    prefix: string, 
-    suffix: string = '', 
+    prefix: string,
+    suffix: string = '',
     blockMode: boolean = false
   ) => {
     if (!editorView) return;
@@ -25,12 +26,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({ editorView }) => {
     const selection = state.selection.main;
     const from = selection.from;
     const to = selection.to;
-    
+
     // If text is selected
     if (from !== to) {
       const selectedText = state.sliceDoc(from, to);
       const replacement = `${prefix}${selectedText}${suffix}`;
-      
+
       dispatch(state.update({
         changes: { from, to, insert: replacement },
         selection: { anchor: from + prefix.length + selectedText.length + suffix.length }
@@ -44,10 +45,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({ editorView }) => {
       // For block commands (headers, lists), we generally want to operate on the line
       const line = state.doc.lineAt(from);
       const lineText = line.text;
-      
+
       // If line is empty, just insert
       if (!lineText.trim()) {
-         dispatch(state.update({
+        dispatch(state.update({
           changes: { from: line.from, to: line.to, insert: `${prefix} ` },
           selection: { anchor: line.from + prefix.length + 1 }
         }));
@@ -66,7 +67,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ editorView }) => {
         selection: { anchor: from + prefix.length, head: from + prefix.length + placeholder.length }
       }));
     }
-    
+
     editorView.focus();
   };
 
@@ -76,13 +77,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({ editorView }) => {
     const dispatch = editorView.dispatch;
     const selection = state.selection.main;
     const selectedText = state.sliceDoc(selection.from, selection.to);
-    
+
     const text = selectedText || "link";
     const insert = `[${text}](url)`;
-    
+
     dispatch(state.update({
       changes: { from: selection.from, to: selection.to, insert },
-      selection: { 
+      selection: {
         anchor: selection.from + text.length + 3, // Start of 'url'
         head: selection.from + text.length + 6    // End of 'url'
       }

@@ -61,18 +61,22 @@ export const PreviewPane: React.FC<PreviewProps> = ({ htmlContent }) => {
             div.innerHTML = svg;
           } catch (error: any) {
             // Keep the original code visible if rendering fails, but styled as error
-            // Some versions of mermaid throw objects that aren't Errors but have message or str property
             const errorMessage = error?.message || error?.str || String(error);
+
+            // SECURITY: Escape HTML to prevent XSS from malicious markdown or error strings
+            const escapeHtml = (unsafe: string) =>
+              unsafe.replace(/[&<"']/g, m => ({ '&': '&amp;', '<': '&lt;', '"': '&quot;', "'": '&apos;' }[m] || m));
+
             div.innerHTML = `
               <div class="text-red-600 border border-red-300 bg-red-50 p-3 rounded-lg text-sm overflow-auto my-2 shadow-sm font-sans">
                 <div class="font-bold flex items-center gap-2 mb-2">
                   <span class="bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">!</span>
                   Mermaid Syntax Error
                 </div>
-                <pre class="bg-white/50 p-2 rounded border border-red-200 font-mono text-xs whitespace-pre-wrap">${errorMessage}</pre>
+                <pre class="bg-white/50 p-2 rounded border border-red-200 font-mono text-xs whitespace-pre-wrap">${escapeHtml(errorMessage)}</pre>
                 <details class="mt-2 text-xs text-gray-500 cursor-pointer">
                   <summary class="hover:text-gray-700">Show Details</summary>
-                  <pre class="mt-2 p-2 bg-gray-100 rounded border border-gray-200 opacity-80">${codeContent}</pre>
+                  <pre class="mt-2 p-2 bg-gray-100 rounded border border-gray-200 opacity-80">${escapeHtml(codeContent)}</pre>
                 </details>
               </div>
             `;
