@@ -26,37 +26,43 @@ export function sanitizeHtml(rawHtml: string): string {
   });
 }
 
+import renderMathInElement from 'katex/contrib/auto-render';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
+
 /**
  * Renders KaTeX math expressions in a given DOM container.
  * Looks for elements with class `math-inline` and `math-display` produced by remark-math + remark-rehype.
  * 
- * Must run on the main thread where DOM + KaTeX are available.
+ * Must run on the main thread where DOM is available.
  * 
  * @param container The DOM element containing the HTML to process
  */
 export function renderMathInContainer(container: HTMLElement): void {
   try {
-    // Import KaTeX's auto-render (available from the katex npm package)
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const renderMathInElement = (window as any).__renderMathInElement;
-    if (renderMathInElement) {
-      renderMathInElement(container, {
-        delimiters: [
-          { left: '$$', right: '$$', display: true },
-          { left: '$', right: '$', display: false },
-        ],
-        throwOnError: false,
-      });
-      return;
-    }
+    // 1. Use auto-render for delimiters if they exist in text nodes (less likely with remark-math but good fallback)
+    renderMathInElement(container, {
+      delimiters: [
+        { left: '$$', right: '$$', display: true },
+        { left: '$', right: '$', display: false },
+        { left: '\\(', right: '\\)', display: false },
+        { left: '\\[', right: '\\]', display: true }
+      ],
+      throwOnError: false,
+    });
 
-    // Fallback: manually find math nodes from remark-math output and render with KaTeX API
-    const katex = (window as any).katex;
-    if (!katex) return;
-
+    // 2. Explicitly handle remark-math output which puts math in <code> tags
     // remark-math + remark-rehype produces:
     //   Inline: <code class="language-math math-inline">...</code>
     //   Block:  <pre><code class="language-math math-display">...</code></pre>
+
+    // We import katex dynamically or statically. Since we imported auto-render, we might need the core katex for manual rendering if auto-render doesn't catch these code blocks.
+    // Actually, auto-render primarily works on text nodes. It might skip <code> blocks depending on config.
+    // Let's manually process the code blocks as before, but using the imported katex.
+
+    // We need the main katex object for manual rendering
+
+    // Inline math
     const mathInline = container.querySelectorAll('code.math-inline');
     mathInline.forEach((el) => {
       const tex = el.textContent || '';
@@ -69,6 +75,7 @@ export function renderMathInContainer(container: HTMLElement): void {
       }
     });
 
+    // Display math
     const mathDisplay = container.querySelectorAll('code.math-display');
     mathDisplay.forEach((el) => {
       const tex = el.textContent || '';
@@ -86,6 +93,7 @@ export function renderMathInContainer(container: HTMLElement): void {
         console.warn('KaTeX display render failed:', e);
       }
     });
+
   } catch (error) {
     console.error('KaTeX rendering error:', error);
   }

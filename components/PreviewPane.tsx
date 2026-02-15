@@ -1,57 +1,89 @@
 import React, { useEffect, useRef } from 'react';
 import { PreviewProps } from '../types';
 import mermaid from 'mermaid';
+import { toast } from 'sonner';
 import { renderMathInContainer } from '../lib/markdownEngine';
 
 export const PreviewPane: React.FC<PreviewProps> = ({ htmlContent }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Initialize mermaid configuration
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: 'default',
-      securityLevel: 'loose',
-    });
+    // Initialize mermaid configuration once
+    try {
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: 'default',
+        securityLevel: 'loose',
+        fontFamily: 'inherit',
+      });
+    } catch (e) {
+      console.warn('Mermaid initialization failed:', e);
+    }
 
     const renderContent = async () => {
       if (!containerRef.current) return;
 
-      // 1. Render KaTeX math expressions (moved from worker to main thread)
-      renderMathInContainer(containerRef.current);
+      // 1. Render KaTeX math expressions
+      try {
+        renderMathInContainer(containerRef.current);
+      } catch (error) {
+        console.error('KaTeX rendering failed:', error);
+      }
 
       // 2. Render Mermaid diagrams
-      const mermaidBlocks = containerRef.current.querySelectorAll('code.language-mermaid');
+      // Look for both code.language-mermaid and code.mermaid (older convention or different parsers)
+      const mermaidBlocks = containerRef.current.querySelectorAll('code.language-mermaid, code.mermaid');
 
       for (let i = 0; i < mermaidBlocks.length; i++) {
         const block = mermaidBlocks[i];
-        const preElement = block.parentElement;
+        const preElement = block.parentElement; // Usually it's inside a <pre>
 
+        // Only process if it's inside a PRE or if it's a block-level code (though standard markdown puts it in pre)
         if (preElement && preElement.tagName === 'PRE') {
           const codeContent = block.textContent || '';
-          const uniqueId = `mermaid-diagram-${i}-${Date.now()}`;
+          // Provide a simpler, deterministic ID based on index but timestamp to force refresh if needed
+          const uniqueId = `mermaid-${i}-${Date.now()}`;
 
           const div = document.createElement('div');
-          div.className = 'mermaid-diagram';
+          div.className = 'mermaid-diagram flex justify-center my-4';
           div.id = uniqueId;
 
+          // Replace <pre> with <div>
           preElement.replaceWith(div);
 
           try {
-            const { svg } = await mermaid.render(uniqueId + '-svg', codeContent);
+            // First, parse to validate syntax and catch errors manually
+            // This prevents Mermaid from rendering its own "Syntax error" SVG
+            await mermaid.parse(codeContent);
+
+            // If parse succeeds, render returns { svg } in v10+
+            const { svg } = await mermaid.render(uniqueId, codeContent);
             div.innerHTML = svg;
-          } catch (error) {
-            console.error('Mermaid rendering failed:', error);
-            div.innerHTML = `<div class="p-2 border border-red-300 bg-red-50 text-red-600 text-xs rounded">
-              <p class="font-bold">Mermaid Error:</p>
-              <pre class="whitespace-pre-wrap">${(error as Error).message}</pre>
-            </div>`;
+          } catch (error: any) {
+            // Keep the original code visible if rendering fails, but styled as error
+            // Some versions of mermaid throw objects that aren't Errors but have message or str property
+            const errorMessage = error?.message || error?.str || String(error);
+            div.innerHTML = `
+              <div class="text-red-600 border border-red-300 bg-red-50 p-3 rounded-lg text-sm overflow-auto my-2 shadow-sm font-sans">
+                <div class="font-bold flex items-center gap-2 mb-2">
+                  <span class="bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">!</span>
+                  Mermaid Syntax Error
+                </div>
+                <pre class="bg-white/50 p-2 rounded border border-red-200 font-mono text-xs whitespace-pre-wrap">${errorMessage}</pre>
+                <details class="mt-2 text-xs text-gray-500 cursor-pointer">
+                  <summary class="hover:text-gray-700">Show Details</summary>
+                  <pre class="mt-2 p-2 bg-gray-100 rounded border border-gray-200 opacity-80">${codeContent}</pre>
+                </details>
+              </div>
+            `;
           }
         }
       }
     };
 
-    renderContent();
+    // Small timeout to ensure DOM is ready and reduce flickering if rapid updates
+    const timer = setTimeout(renderContent, 0);
+    return () => clearTimeout(timer);
   }, [htmlContent]);
 
   return (

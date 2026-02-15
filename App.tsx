@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Toaster } from 'sonner';
 import { EditorPane } from './components/EditorPane';
 import { PreviewPane } from './components/PreviewPane';
 import { Toolbar } from './components/Toolbar';
@@ -24,15 +25,18 @@ This is **Phase 5**: **Privacy & Performance**.
 
 ## Math & Diagrams
 $$
-\\\\sum_{i=0}^n i^2 = \\\\frac{(n^2+n)(2n+1)}{6}
+\\sum_{i=0}^n i^2 = \\frac{(n^2+n)(2n+1)}{6}
 $$
 
-\\\`\\\`\\\`mermaid
+\`\`\`mermaid
 graph TD
-    User -->|Types| Editor
-    Editor -->|Worker| Engine
-    Engine -->|HTML| Preview
-\\\`\\\`\\\`
+    A[Markdown] -->|Worker| B(HTML)
+    B -->|DOM| C{Preview}
+    C -->|Print| D[PDF]
+    
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style D fill:#69f,stroke:#333,stroke-width:2px
+\`\`\`
 `;
 
 const DEBOUNCE_MS = 300;
@@ -146,6 +150,7 @@ const App: React.FC = () => {
   return (
     <ErrorBoundary>
       <div className="h-screen w-screen flex flex-col bg-gray-50 text-gray-900 font-sans overflow-hidden">
+        <Toaster position="bottom-right" richColors />
         {/* Header */}
         <header className="h-14 bg-white border-b border-gray-200 flex items-center px-4 justify-between shadow-sm z-10 flex-shrink-0">
           <div className="flex items-center gap-2">
