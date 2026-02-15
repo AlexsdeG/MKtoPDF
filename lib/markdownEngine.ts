@@ -9,8 +9,21 @@ const KATEX_TAGS = [
   'menclose', 'mglyph', 'mmultiscripts', 'mprescripts', 'none',
   'span', // KaTeX uses many nested spans
   'mark', // Highlight syntax ==text==
+  // Rich text HTML tags
+  'u', 'sub', 'sup', 'font', 'br',
+  'div', 'p',
 ];
-const KATEX_ATTR = ['encoding', 'xmlns', 'mathvariant', 'stretchy', 'fence', 'separator', 'accent', 'lspace', 'rspace', 'depth', 'height', 'width', 'columnalign', 'rowalign', 'columnspacing', 'rowspacing', 'displaystyle', 'scriptlevel', 'minsize', 'maxsize', 'movablelimits', 'columnlines', 'rowlines', 'frame', 'framespacing', 'equalrows', 'equalcolumns', 'side', 'style', 'class', 'aria-hidden', 'data-callout', 'data-callout-type', 'data-protected'];
+const ALLOWED_ATTR = [
+  'encoding', 'xmlns', 'mathvariant', 'stretchy', 'fence', 'separator',
+  'accent', 'lspace', 'rspace', 'depth', 'height', 'width',
+  'columnalign', 'rowalign', 'columnspacing', 'rowspacing',
+  'displaystyle', 'scriptlevel', 'minsize', 'maxsize', 'movablelimits',
+  'columnlines', 'rowlines', 'frame', 'framespacing',
+  'equalrows', 'equalcolumns', 'side',
+  'style', 'class', 'id', 'aria-hidden',
+  'data-callout', 'data-callout-type', 'data-protected',
+  'color', // for <font color>
+];
 
 /**
  * Sanitizes raw HTML string using DOMPurify.
@@ -44,7 +57,7 @@ export function sanitizeHtml(rawHtml: string): string {
   // 2. Sanitize the rest
   let clean = DOMPurify.sanitize(protectedHtml, {
     ADD_TAGS: KATEX_TAGS,
-    ADD_ATTR: KATEX_ATTR,
+    ADD_ATTR: ALLOWED_ATTR,
   });
 
   // 3. Restore protected blocks by replacing the <div> placeholders

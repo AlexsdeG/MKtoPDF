@@ -14,6 +14,7 @@ export async function parseMarkdown(content: string): Promise<string> {
         const { default: remarkGfm } = await import('remark-gfm');
         const { default: remarkMath } = await import('remark-math');
         const { default: remarkRehype } = await import('remark-rehype');
+        const { default: rehypeRaw } = await import('rehype-raw');
         const { default: rehypeHighlight } = await import('rehype-highlight');
         const { default: rehypeStringify } = await import('rehype-stringify');
 
@@ -22,6 +23,7 @@ export async function parseMarkdown(content: string): Promise<string> {
             .use(remarkGfm)
             .use(remarkMath)
             .use(remarkRehype, { allowDangerousHtml: true })
+            .use(rehypeRaw)
             // rehype-highlight has no DOM dependency — safe for Worker
             .use(rehypeHighlight, { ignoreMissing: true, plainText: ['mermaid', 'math'] } as any)
             // NOTE: rehype-katex removed — it requires DOM. KaTeX renders on main thread.

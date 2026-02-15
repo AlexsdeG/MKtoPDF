@@ -23,13 +23,14 @@ const ColorInput: React.FC<{
     label: string;
     value: string;
     onChange: (v: string) => void;
-}> = ({ label, value, onChange }) => (
+    placeholder?: string;
+}> = ({ label, value, onChange, placeholder }) => (
     <div className="flex items-center justify-between gap-3">
         <label className="text-sm text-gray-600 font-medium">{label}</label>
         <div className="flex items-center gap-2">
             <input
                 type="color"
-                value={value}
+                value={value || '#000000'}
                 onChange={(e) => onChange(e.target.value)}
                 className="w-8 h-8 rounded-lg border border-gray-200 cursor-pointer"
                 style={{ padding: 0 }}
@@ -37,8 +38,9 @@ const ColorInput: React.FC<{
             <input
                 type="text"
                 value={value}
+                placeholder={placeholder || ''}
                 onChange={(e) => onChange(e.target.value)}
-                className="w-20 px-2 py-1 text-xs font-mono bg-gray-50 border border-gray-200 rounded-md"
+                className="w-24 px-2 py-1 text-xs font-mono bg-gray-50 border border-gray-200 rounded-md"
             />
         </div>
     </div>
@@ -72,6 +74,37 @@ const SliderInput: React.FC<{
     </div>
 );
 
+const FontSelector: React.FC<{
+    label: string;
+    value: string;
+    onChange: (v: 'sans' | 'serif' | 'mono') => void;
+}> = ({ label, value, onChange }) => (
+    <div className="space-y-2">
+        <label className="text-sm text-gray-600 font-medium">{label}</label>
+        <div className="grid grid-cols-3 gap-2">
+            {(['sans', 'serif', 'mono'] as const).map((f) => (
+                <button
+                    key={f}
+                    onClick={() => onChange(f)}
+                    className={clsx(
+                        'px-3 py-2.5 rounded-xl text-sm font-medium border-2 transition-all',
+                        value === f
+                            ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-sm'
+                            : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                    )}
+                    style={{
+                        fontFamily: f === 'sans' ? 'Inter, sans-serif'
+                            : f === 'serif' ? 'Georgia, serif'
+                                : 'Fira Code, monospace'
+                    }}
+                >
+                    {f === 'sans' ? 'Sans Serif' : f === 'serif' ? 'Serif' : 'Monospace'}
+                </button>
+            ))}
+        </div>
+    </div>
+);
+
 export const StylesModal: React.FC<StylesModalProps> = ({
     isOpen,
     onClose,
@@ -85,7 +118,6 @@ export const StylesModal: React.FC<StylesModalProps> = ({
         setLocalSettings(settings);
     }, [settings]);
 
-    // Live update as user changes settings
     const update = (patch: Partial<StyleSettings>) => {
         const next = { ...localSettings, ...patch };
         setLocalSettings(next);
@@ -112,10 +144,7 @@ export const StylesModal: React.FC<StylesModalProps> = ({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
-            {/* Backdrop */}
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-
-            {/* Modal */}
             <div
                 className="relative bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden border border-gray-200"
                 onClick={(e) => e.stopPropagation()}
@@ -172,30 +201,16 @@ export const StylesModal: React.FC<StylesModalProps> = ({
                 <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
                     {activeTab === 'typography' && (
                         <>
-                            <div className="space-y-2">
-                                <label className="text-sm text-gray-600 font-medium">Font Family</label>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {(['sans', 'serif', 'mono'] as const).map((f) => (
-                                        <button
-                                            key={f}
-                                            onClick={() => update({ fontFamily: f })}
-                                            className={clsx(
-                                                'px-3 py-2.5 rounded-xl text-sm font-medium border-2 transition-all',
-                                                localSettings.fontFamily === f
-                                                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-sm'
-                                                    : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
-                                            )}
-                                            style={{
-                                                fontFamily: f === 'sans' ? 'Inter, sans-serif'
-                                                    : f === 'serif' ? 'Georgia, serif'
-                                                        : 'Fira Code, monospace'
-                                            }}
-                                        >
-                                            {f === 'sans' ? 'Sans Serif' : f === 'serif' ? 'Serif' : 'Monospace'}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
+                            <FontSelector
+                                label="Body Font"
+                                value={localSettings.fontFamily}
+                                onChange={(v) => update({ fontFamily: v })}
+                            />
+                            <FontSelector
+                                label="Heading Font"
+                                value={localSettings.headingFontFamily}
+                                onChange={(v) => update({ headingFontFamily: v })}
+                            />
                             <SliderInput
                                 label="Font Size"
                                 value={localSettings.fontSize}
@@ -223,26 +238,74 @@ export const StylesModal: React.FC<StylesModalProps> = ({
                                 value={localSettings.accentColor}
                                 onChange={(v) => update({ accentColor: v })}
                             />
-                            <ColorInput
-                                label="Heading Color"
-                                value={localSettings.headingColor}
-                                onChange={(v) => update({ headingColor: v })}
-                            />
-                            <ColorInput
-                                label="Text Color"
-                                value={localSettings.textColor}
-                                onChange={(v) => update({ textColor: v })}
-                            />
-                            <ColorInput
-                                label="Background"
-                                value={localSettings.backgroundColor}
-                                onChange={(v) => update({ backgroundColor: v })}
-                            />
-                            <ColorInput
-                                label="Code Background"
-                                value={localSettings.codeBgColor}
-                                onChange={(v) => update({ codeBgColor: v })}
-                            />
+
+                            <div className="border-t border-gray-100 pt-4">
+                                <h3 className="text-sm font-semibold text-gray-700 mb-3">Headings</h3>
+                                <div className="space-y-3">
+                                    <ColorInput
+                                        label="All Headings (default)"
+                                        value={localSettings.headingColor}
+                                        onChange={(v) => update({ headingColor: v })}
+                                    />
+                                    <ColorInput
+                                        label="H1 Override"
+                                        value={localSettings.h1Color}
+                                        onChange={(v) => update({ h1Color: v })}
+                                        placeholder="inherit"
+                                    />
+                                    <ColorInput
+                                        label="H2 Override"
+                                        value={localSettings.h2Color}
+                                        onChange={(v) => update({ h2Color: v })}
+                                        placeholder="inherit"
+                                    />
+                                    <ColorInput
+                                        label="H3 Override"
+                                        value={localSettings.h3Color}
+                                        onChange={(v) => update({ h3Color: v })}
+                                        placeholder="inherit"
+                                    />
+                                    <ColorInput
+                                        label="H4 Override"
+                                        value={localSettings.h4Color}
+                                        onChange={(v) => update({ h4Color: v })}
+                                        placeholder="inherit"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="border-t border-gray-100 pt-4">
+                                <h3 className="text-sm font-semibold text-gray-700 mb-3">Text</h3>
+                                <div className="space-y-3">
+                                    <ColorInput
+                                        label="Text Color"
+                                        value={localSettings.textColor}
+                                        onChange={(v) => update({ textColor: v })}
+                                    />
+                                    <ColorInput
+                                        label="Paragraph Color"
+                                        value={localSettings.paragraphColor}
+                                        onChange={(v) => update({ paragraphColor: v })}
+                                        placeholder="inherit"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="border-t border-gray-100 pt-4">
+                                <h3 className="text-sm font-semibold text-gray-700 mb-3">Background</h3>
+                                <div className="space-y-3">
+                                    <ColorInput
+                                        label="Background"
+                                        value={localSettings.backgroundColor}
+                                        onChange={(v) => update({ backgroundColor: v })}
+                                    />
+                                    <ColorInput
+                                        label="Code Background"
+                                        value={localSettings.codeBgColor}
+                                        onChange={(v) => update({ codeBgColor: v })}
+                                    />
+                                </div>
+                            </div>
                         </div>
                     )}
 

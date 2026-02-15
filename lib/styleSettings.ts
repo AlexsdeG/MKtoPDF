@@ -5,13 +5,19 @@
 export interface StyleSettings {
     // Typography
     fontFamily: 'sans' | 'serif' | 'mono';
+    headingFontFamily: 'sans' | 'serif' | 'mono';
     fontSize: number; // in px (14-22)
     lineHeight: number; // 1.4 - 2.0
 
     // Colors
     accentColor: string;
     headingColor: string;
+    h1Color: string;
+    h2Color: string;
+    h3Color: string;
+    h4Color: string;
     textColor: string;
+    paragraphColor: string;
     backgroundColor: string;
     codeBgColor: string;
 
@@ -25,11 +31,17 @@ export interface StyleSettings {
 
 export const DEFAULT_STYLE_SETTINGS: StyleSettings = {
     fontFamily: 'sans',
+    headingFontFamily: 'sans',
     fontSize: 16,
     lineHeight: 1.6,
     accentColor: '#4f46e5',
     headingColor: '#1e293b',
+    h1Color: '',
+    h2Color: '',
+    h3Color: '',
+    h4Color: '',
     textColor: '#334155',
+    paragraphColor: '',
     backgroundColor: '#ffffff',
     codeBgColor: '#f6f8fa',
     maxContentWidth: 900,
@@ -49,11 +61,17 @@ const FONT_FAMILIES: Record<string, string> = {
 export function stylesToCSSVars(settings: StyleSettings): Record<string, string> {
     return {
         '--md-font-family': FONT_FAMILIES[settings.fontFamily] || FONT_FAMILIES.sans,
+        '--md-heading-font-family': FONT_FAMILIES[settings.headingFontFamily] || FONT_FAMILIES[settings.fontFamily] || FONT_FAMILIES.sans,
         '--md-font-size': `${settings.fontSize}px`,
         '--md-line-height': `${settings.lineHeight}`,
         '--md-accent-color': settings.accentColor,
         '--md-heading-color': settings.headingColor,
+        '--md-h1-color': settings.h1Color || settings.headingColor,
+        '--md-h2-color': settings.h2Color || settings.headingColor,
+        '--md-h3-color': settings.h3Color || settings.headingColor,
+        '--md-h4-color': settings.h4Color || settings.headingColor,
         '--md-text-color': settings.textColor,
+        '--md-p-color': settings.paragraphColor || settings.textColor,
         '--md-bg-color': settings.backgroundColor,
         '--md-code-bg': settings.codeBgColor,
         '--md-max-width': `${settings.maxContentWidth}px`,
