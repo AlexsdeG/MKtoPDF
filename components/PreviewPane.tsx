@@ -1,11 +1,127 @@
 import React, { useEffect, useRef } from 'react';
 import { PreviewProps } from '../types';
 import mermaid from 'mermaid';
-import { toast } from 'sonner';
 import { renderMathInContainer } from '../lib/markdownEngine';
+import { CALLOUT_TYPES, resolveCalloutType, StyleSettings, stylesToCSSVars, DEFAULT_STYLE_SETTINGS } from '../lib/styleSettings';
 
-export const PreviewPane: React.FC<PreviewProps> = ({ htmlContent }) => {
+interface ExtendedPreviewProps extends PreviewProps {
+  styleSettings?: StyleSettings;
+}
+
+/**
+ * Escape HTML for safe insertion into innerHTML.
+ */
+function escapeHtml(unsafe: string): string {
+  return unsafe.replace(/[&<"']/g, m => ({ '&': '&amp;', '<': '&lt;', '"': '&quot;', "'": '&apos;' }[m] || m));
+}
+
+/**
+ * Transform Obsidian-style callout blockquotes into styled callout divs.
+ * Looks for blockquotes whose first text starts with [!type]
+ */
+function transformCallouts(container: HTMLElement, settings: StyleSettings): void {
+  const blockquotes = container.querySelectorAll('blockquote');
+
+  blockquotes.forEach((bq) => {
+    const firstChild = bq.firstElementChild;
+    if (!firstChild) return;
+
+    // Get the text content of the first element (usually a <p>)
+    const firstText = firstChild.innerHTML || '';
+
+    // Match [!type] with optional title
+    const calloutMatch = firstText.match(/^\s*\[!([\w-]+)\]\s*(.*)/);
+    if (!calloutMatch) return;
+
+    const rawType = calloutMatch[1];
+    const resolvedType = resolveCalloutType(rawType);
+    const typeDef = CALLOUT_TYPES[resolvedType] || CALLOUT_TYPES.note;
+
+    // Use custom color from settings if available, otherwise use default
+    const color = settings.calloutColors[resolvedType] || typeDef.color;
+
+    // Title: either the inline title from [!type] Title, or the capitalized type
+    const titleText = calloutMatch[2]?.trim() || resolvedType.charAt(0).toUpperCase() + resolvedType.slice(1);
+
+    // Remove the [!type] line from the first child and collect the rest
+    const remainingFirstContent = firstText.replace(/^\s*\[![\w-]+\]\s*[^\n]*/, '').trim();
+
+    // Build callout HTML
+    const calloutDiv = document.createElement('div');
+    calloutDiv.className = `callout callout-${resolvedType}`;
+    calloutDiv.style.setProperty('--callout-color', color);
+
+    // Title row
+    const titleDiv = document.createElement('div');
+    titleDiv.className = 'callout-title';
+    titleDiv.innerHTML = `<span class="callout-icon">${typeDef.icon}</span><span class="callout-title-text">${escapeHtml(titleText)}</span>`;
+
+    // Content
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'callout-content';
+
+    // If there's remaining content in the first paragraph, add it
+    if (remainingFirstContent) {
+      const p = document.createElement('p');
+      p.innerHTML = remainingFirstContent;
+      contentDiv.appendChild(p);
+    }
+
+    // Move all child elements except the first one into content
+    const children = Array.from(bq.children);
+    for (let i = 1; i < children.length; i++) {
+      contentDiv.appendChild(children[i].cloneNode(true));
+    }
+
+    calloutDiv.appendChild(titleDiv);
+    if (contentDiv.childNodes.length > 0) {
+      calloutDiv.appendChild(contentDiv);
+    }
+
+    bq.replaceWith(calloutDiv);
+  });
+}
+
+/**
+ * Transform ==text== highlight syntax into <mark> tags.
+ * Runs after HTML is set in the DOM since remark doesn't handle this natively.
+ */
+function transformHighlights(container: HTMLElement): void {
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+  const textNodes: Text[] = [];
+
+  let node: Text | null;
+  while ((node = walker.nextNode() as Text)) {
+    if (node.nodeValue && node.nodeValue.includes('==')) {
+      textNodes.push(node);
+    }
+  }
+
+  textNodes.forEach((textNode) => {
+    const text = textNode.nodeValue || '';
+    if (!text.match(/==[^=]+==/)) return;
+
+    const fragment = document.createDocumentFragment();
+    const parts = text.split(/(==[^=]+=={1,2})/g);
+
+    parts.forEach((part) => {
+      const highlightMatch = part.match(/^==([^=]+)==$/);
+      if (highlightMatch) {
+        const mark = document.createElement('mark');
+        mark.textContent = highlightMatch[1];
+        fragment.appendChild(mark);
+      } else {
+        fragment.appendChild(document.createTextNode(part));
+      }
+    });
+
+    textNode.parentNode?.replaceChild(fragment, textNode);
+  });
+}
+
+export const PreviewPane: React.FC<ExtendedPreviewProps> = ({ htmlContent, styleSettings }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const settings = styleSettings || DEFAULT_STYLE_SETTINGS;
 
   useEffect(() => {
     // Initialize mermaid configuration once
@@ -23,61 +139,56 @@ export const PreviewPane: React.FC<PreviewProps> = ({ htmlContent }) => {
     const renderContent = async () => {
       if (!containerRef.current) return;
 
-      // 1. Render KaTeX math expressions
+      // 1. Transform ==highlight== syntax
+      transformHighlights(containerRef.current);
+
+      // 2. Transform Obsidian callouts  
+      transformCallouts(containerRef.current, settings);
+
+      // 3. Render KaTeX math expressions
       try {
         renderMathInContainer(containerRef.current);
       } catch (error) {
         console.error('KaTeX rendering failed:', error);
       }
 
-      // 2. Render Mermaid diagrams
-      // Look for both code.language-mermaid and code.mermaid (older convention or different parsers)
+      // 4. Render Mermaid diagrams
       const mermaidBlocks = containerRef.current.querySelectorAll('code.language-mermaid, code.mermaid');
 
       for (let i = 0; i < mermaidBlocks.length; i++) {
         const block = mermaidBlocks[i];
-        const preElement = block.parentElement; // Usually it's inside a <pre>
+        const preElement = block.parentElement;
 
-        // Only process if it's inside a PRE or if it's a block-level code (though standard markdown puts it in pre)
         if (preElement && preElement.tagName === 'PRE') {
           const codeContent = block.textContent || '';
-          // Provide a simpler, deterministic ID based on index but timestamp to force refresh if needed
           const uniqueId = `mermaid-${i}-${Date.now()}`;
 
           const div = document.createElement('div');
-          div.className = 'mermaid-diagram flex justify-center my-4';
+          div.className = 'mermaid-diagram';
           div.id = uniqueId;
 
-          // Replace <pre> with <div>
           preElement.replaceWith(div);
 
           try {
-            // First, parse to validate syntax and catch errors manually
-            // This prevents Mermaid from rendering its own "Syntax error" SVG
             await mermaid.parse(codeContent);
-
-            // If parse succeeds, render returns { svg } in v10+
             const { svg } = await mermaid.render(uniqueId, codeContent);
             div.innerHTML = svg;
           } catch (error: any) {
-            // Keep the original code visible if rendering fails, but styled as error
             const errorMessage = error?.message || error?.str || String(error);
 
-            // SECURITY: Escape HTML to prevent XSS from malicious markdown or error strings
-            const escapeHtml = (unsafe: string) =>
-              unsafe.replace(/[&<"']/g, m => ({ '&': '&amp;', '<': '&lt;', '"': '&quot;', "'": '&apos;' }[m] || m));
-
             div.innerHTML = `
-              <div class="text-red-600 border border-red-300 bg-red-50 p-3 rounded-lg text-sm overflow-auto my-2 shadow-sm font-sans">
-                <div class="font-bold flex items-center gap-2 mb-2">
-                  <span class="bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">!</span>
-                  Mermaid Syntax Error
+              <div class="callout callout-danger" style="--callout-color: #ff1744;">
+                <div class="callout-title">
+                  <span class="callout-icon">⛔</span>
+                  <span class="callout-title-text">Mermaid Syntax Error</span>
                 </div>
-                <pre class="bg-white/50 p-2 rounded border border-red-200 font-mono text-xs whitespace-pre-wrap">${escapeHtml(errorMessage)}</pre>
-                <details class="mt-2 text-xs text-gray-500 cursor-pointer">
-                  <summary class="hover:text-gray-700">Show Details</summary>
-                  <pre class="mt-2 p-2 bg-gray-100 rounded border border-gray-200 opacity-80">${escapeHtml(codeContent)}</pre>
-                </details>
+                <div class="callout-content">
+                  <pre style="font-size: 0.85em; white-space: pre-wrap; margin: 0;">${escapeHtml(errorMessage)}</pre>
+                  <details style="margin-top: 0.5em; font-size: 0.8em; opacity: 0.7; cursor: pointer;">
+                    <summary>Show Source</summary>
+                    <pre style="margin-top: 0.5em;">${escapeHtml(codeContent)}</pre>
+                  </details>
+                </div>
               </div>
             `;
           }
@@ -85,10 +196,12 @@ export const PreviewPane: React.FC<PreviewProps> = ({ htmlContent }) => {
       }
     };
 
-    // Small timeout to ensure DOM is ready and reduce flickering if rapid updates
     const timer = setTimeout(renderContent, 0);
     return () => clearTimeout(timer);
-  }, [htmlContent]);
+  }, [htmlContent, settings]);
+
+  // Build CSS custom properties from style settings
+  const cssVars = stylesToCSSVars(settings);
 
   return (
     <div className="w-full h-full flex flex-col bg-white">
@@ -99,6 +212,7 @@ export const PreviewPane: React.FC<PreviewProps> = ({ htmlContent }) => {
       <div
         ref={containerRef}
         className="flex-1 w-full p-8 overflow-auto prose-preview"
+        style={cssVars as React.CSSProperties}
         dangerouslySetInnerHTML={{ __html: htmlContent }}
       />
     </div>

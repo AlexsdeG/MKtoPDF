@@ -8,22 +8,51 @@ const KATEX_TAGS = [
   'mtable', 'mtr', 'mtd', 'mtext', 'mspace', 'mpadded',
   'menclose', 'mglyph', 'mmultiscripts', 'mprescripts', 'none',
   'span', // KaTeX uses many nested spans
+  'mark', // Highlight syntax ==text==
 ];
-const KATEX_ATTR = ['encoding', 'xmlns', 'mathvariant', 'stretchy', 'fence', 'separator', 'accent', 'lspace', 'rspace', 'depth', 'height', 'width', 'columnalign', 'rowalign', 'columnspacing', 'rowspacing', 'displaystyle', 'scriptlevel', 'minsize', 'maxsize', 'movablelimits', 'columnlines', 'rowlines', 'frame', 'framespacing', 'equalrows', 'equalcolumns', 'side', 'style', 'class', 'aria-hidden'];
+const KATEX_ATTR = ['encoding', 'xmlns', 'mathvariant', 'stretchy', 'fence', 'separator', 'accent', 'lspace', 'rspace', 'depth', 'height', 'width', 'columnalign', 'rowalign', 'columnspacing', 'rowspacing', 'displaystyle', 'scriptlevel', 'minsize', 'maxsize', 'movablelimits', 'columnlines', 'rowlines', 'frame', 'framespacing', 'equalrows', 'equalcolumns', 'side', 'style', 'class', 'aria-hidden', 'data-callout', 'data-callout-type', 'data-protected'];
 
 /**
  * Sanitizes raw HTML string using DOMPurify.
  * This MUST run in a browser environment (Main Thread) where DOM is available.
+ * 
+ * Mermaid and math code blocks are protected from sanitization because they
+ * contain syntax (like -->) that DOMPurify misinterprets as HTML.
  * 
  * @param rawHtml Unsafe HTML string
  * @returns Sanitized HTML string
  */
 export function sanitizeHtml(rawHtml: string): string {
   if (typeof window === 'undefined') return rawHtml; // Safety for SSR/Node
-  return DOMPurify.sanitize(rawHtml, {
+
+  // 1. Extract code blocks that DOMPurify would destroy
+  //    Mermaid code contains --> which looks like HTML to DOMPurify
+  const placeholders: Map<string, string> = new Map();
+  let counter = 0;
+
+  const protectedHtml = rawHtml.replace(
+    /<pre><code class="language-(mermaid|math[^"]*)">([\s\S]*?)<\/code><\/pre>/g,
+    (_match, lang, content) => {
+      const id = `__PROTECTED_BLOCK_${counter++}__`;
+      placeholders.set(id, `<pre><code class="language-${lang}">${content}</code></pre>`);
+      // Wrap in <div> to prevent DOMPurify from nesting placeholder inside <p>
+      // (which would make the restored <pre> invalid HTML: <p><pre>...</pre></p>)
+      return `<div data-protected="${id}"></div>`;
+    }
+  );
+
+  // 2. Sanitize the rest
+  let clean = DOMPurify.sanitize(protectedHtml, {
     ADD_TAGS: KATEX_TAGS,
     ADD_ATTR: KATEX_ATTR,
   });
+
+  // 3. Restore protected blocks by replacing the <div> placeholders
+  placeholders.forEach((original, id) => {
+    clean = clean.replace(`<div data-protected="${id}"></div>`, original);
+  });
+
+  return clean;
 }
 
 import renderMathInElement from 'katex/contrib/auto-render';

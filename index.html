@@ -11,33 +11,89 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
 
   <style>
-    /* Basic styles for preview content to look decent before full theming */
+    /* ===========================
+       CSS Custom Properties (overridable via StyleSettings)
+       =========================== */
+    .prose-preview {
+      font-family: var(--md-font-family, 'Inter', ui-sans-serif, system-ui, sans-serif);
+      font-size: var(--md-font-size, 16px);
+      line-height: var(--md-line-height, 1.6);
+      color: var(--md-text-color, #334155);
+      background-color: var(--md-bg-color, #ffffff);
+      max-width: var(--md-max-width, 900px);
+      margin: 0 auto;
+    }
+
+    /* ===========================
+       Typography
+       =========================== */
     .prose-preview h1 {
       font-size: 2em;
-      font-weight: bold;
+      font-weight: 800;
       margin-bottom: 0.5em;
-      margin-top: 1em;
+      margin-top: 1.2em;
+      color: var(--md-heading-color, #1e293b);
+      letter-spacing: -0.02em;
+      border-bottom: 2px solid var(--md-accent-color, #4f46e5);
+      padding-bottom: 0.2em;
     }
 
     .prose-preview h2 {
       font-size: 1.5em;
-      font-weight: bold;
+      font-weight: 700;
       margin-bottom: 0.5em;
-      margin-top: 1em;
+      margin-top: 1.5em;
+      color: var(--md-heading-color, #1e293b);
+      letter-spacing: -0.01em;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 0.15em;
     }
 
     .prose-preview h3 {
-      font-size: 1.17em;
-      font-weight: bold;
-      margin-bottom: 0.5em;
+      font-size: 1.25em;
+      font-weight: 600;
+      margin-bottom: 0.4em;
+      margin-top: 1.3em;
+      color: var(--md-heading-color, #1e293b);
+    }
+
+    .prose-preview h4 {
+      font-size: 1.1em;
+      font-weight: 600;
+      margin-bottom: 0.3em;
       margin-top: 1em;
+      color: var(--md-heading-color, #1e293b);
     }
 
     .prose-preview p {
       margin-bottom: 1em;
-      line-height: 1.6;
+      line-height: var(--md-line-height, 1.6);
+      text-align: var(--md-p-align, left);
     }
 
+    .prose-preview a {
+      color: var(--md-accent-color, #4f46e5);
+      text-decoration: underline;
+      text-decoration-color: color-mix(in srgb, var(--md-accent-color, #4f46e5) 40%, transparent);
+      text-underline-offset: 2px;
+      transition: text-decoration-color 0.2s;
+    }
+
+    .prose-preview a:hover {
+      text-decoration-color: var(--md-accent-color, #4f46e5);
+    }
+
+    .prose-preview strong {
+      font-weight: 700;
+    }
+
+    .prose-preview em {
+      font-style: italic;
+    }
+
+    /* ===========================
+       Lists
+       =========================== */
     .prose-preview ul {
       list-style-type: disc;
       margin-left: 1.5em;
@@ -50,70 +106,270 @@
       margin-bottom: 1em;
     }
 
-    .prose-preview blockquote {
-      border-left: 4px solid #ccc;
-      padding-left: 1em;
-      color: #666;
-      font-style: italic;
+    .prose-preview li {
+      margin-bottom: 0.3em;
     }
 
-    .prose-preview table {
-      border-collapse: collapse;
-      width: 100%;
-      margin-bottom: 1em;
+    .prose-preview li>ul,
+    .prose-preview li>ol {
+      margin-top: 0.3em;
+      margin-bottom: 0;
     }
 
-    .prose-preview th,
-    .prose-preview td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: left;
+    /* ===========================
+       Task Lists (GFM)
+       =========================== */
+    .prose-preview ul:has(> li > input[type="checkbox"]) {
+      list-style: none;
+      padding-left: 0;
+      margin-left: 0;
     }
 
-    .prose-preview th {
-      background-color: #f2f2f2;
+    .prose-preview li:has(> input[type="checkbox"]) {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5em;
+      padding: 0.25em 0;
     }
 
-    .prose-preview code {
-      background-color: #f4f4f4;
-      padding: 2px 4px;
+    .prose-preview input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 1.15em;
+      height: 1.15em;
+      border: 2px solid #94a3b8;
       border-radius: 4px;
-      font-family: monospace;
+      margin-top: 0.2em;
+      flex-shrink: 0;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.15s;
+    }
+
+    .prose-preview input[type="checkbox"]:checked {
+      background-color: var(--md-accent-color, #4f46e5);
+      border-color: var(--md-accent-color, #4f46e5);
+    }
+
+    .prose-preview input[type="checkbox"]:checked::after {
+      content: '✓';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 0.75em;
+      color: white;
+      font-weight: 700;
+    }
+
+    .prose-preview li:has(> input[type="checkbox"]:checked) {
+      color: #94a3b8;
+      text-decoration: line-through;
+      text-decoration-color: #cbd5e1;
+    }
+
+    /* ===========================
+       Blockquotes
+       =========================== */
+    .prose-preview blockquote {
+      border-left: 4px solid #cbd5e1;
+      padding: 0.5em 1em;
+      color: #64748b;
+      font-style: italic;
+      margin: 1em 0;
+      background: #f8fafc;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .prose-preview blockquote>p:last-child {
+      margin-bottom: 0;
+    }
+
+    /* ===========================
+       Code
+       =========================== */
+    .prose-preview code {
+      background-color: var(--md-code-bg, #f6f8fa);
+      padding: 0.15em 0.4em;
+      border-radius: 5px;
+      font-family: 'Fira Code', 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 0.875em;
+      border: 1px solid #e2e8f0;
     }
 
     .prose-preview pre {
-      background-color: #f6f8fa;
-      padding: 1em;
-      border-radius: 4px;
+      background-color: var(--md-code-bg, #f6f8fa);
+      padding: 1em 1.25em;
+      border-radius: 10px;
       overflow-x: auto;
-      margin-bottom: 1em;
+      margin-bottom: 1.25em;
+      border: 1px solid #e2e8f0;
     }
 
     .prose-preview pre code {
       background-color: transparent;
       padding: 0;
+      border: none;
+      font-size: 0.9em;
     }
 
-    /* KaTeX specific fixes if needed */
+    /* ===========================
+       Tables
+       =========================== */
+    .prose-preview table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 1.25em 0;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #e2e8f0;
+    }
+
+    .prose-preview th,
+    .prose-preview td {
+      border: 1px solid #e2e8f0;
+      padding: 10px 14px;
+      text-align: left;
+    }
+
+    .prose-preview th {
+      background: linear-gradient(to bottom, #f1f5f9, #e2e8f0);
+      font-weight: 600;
+      font-size: 0.9em;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: #475569;
+    }
+
+    .prose-preview tr:nth-child(even) td {
+      background-color: #fafbfc;
+    }
+
+    .prose-preview tr:hover td {
+      background-color: #f0f4ff;
+    }
+
+    /* ===========================
+       Horizontal Rule
+       =========================== */
+    .prose-preview hr {
+      border: none;
+      height: 3px;
+      background: linear-gradient(to right, transparent, var(--md-accent-color, #4f46e5), transparent);
+      margin: 2em 0;
+      border-radius: 2px;
+      opacity: 0.5;
+    }
+
+    /* ===========================
+       Images
+       =========================== */
+    .prose-preview img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 10px;
+      margin: 1.5em auto;
+      display: block;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    /* ===========================
+       Mark / Highlight ==text==
+       =========================== */
+    .prose-preview mark {
+      background: linear-gradient(120deg, #fef08a 0%, #fde047 100%);
+      padding: 0.1em 0.3em;
+      border-radius: 4px;
+      color: inherit;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
+
+    /* ===========================
+       KaTeX
+       =========================== */
     .katex-display {
       overflow-x: auto;
       overflow-y: hidden;
+      padding: 0.5em 0;
     }
 
-    /* CodeMirror Overrides */
+    /* ===========================
+       Mermaid
+       =========================== */
+    .mermaid-diagram {
+      display: flex;
+      justify-content: center;
+      margin: 1.5em 0;
+    }
+
+    /* ===========================
+       Obsidian Callout Blocks
+       =========================== */
+    .callout {
+      border: 1px solid color-mix(in srgb, var(--callout-color, #448aff) 30%, transparent);
+      border-left: 4px solid var(--callout-color, #448aff);
+      border-radius: 10px;
+      margin: 1.25em 0;
+      overflow: hidden;
+      background: color-mix(in srgb, var(--callout-color, #448aff) 5%, white);
+      transition: box-shadow 0.2s;
+    }
+
+    .callout:hover {
+      box-shadow: 0 2px 12px color-mix(in srgb, var(--callout-color, #448aff) 15%, transparent);
+    }
+
+    .callout-title {
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+      padding: 0.65em 1em;
+      font-weight: 700;
+      font-size: 0.95em;
+      color: var(--callout-color, #448aff);
+      background: color-mix(in srgb, var(--callout-color, #448aff) 10%, white);
+      border-bottom: 1px solid color-mix(in srgb, var(--callout-color, #448aff) 15%, transparent);
+    }
+
+    .callout-icon {
+      font-size: 1.1em;
+      flex-shrink: 0;
+    }
+
+    .callout-title-text {
+      flex: 1;
+    }
+
+    .callout-content {
+      padding: 0.75em 1em;
+      font-size: 0.95em;
+      color: #475569;
+    }
+
+    .callout-content>p:last-child {
+      margin-bottom: 0;
+    }
+
+    .callout-content>p:first-child {
+      margin-top: 0;
+    }
+
+    .callout-content ul,
+    .callout-content ol {
+      margin-left: 1.2em;
+      margin-bottom: 0.5em;
+    }
+
+    /* ===========================
+       CodeMirror Overrides
+       =========================== */
     .cm-editor {
       height: 100%;
     }
 
     .cm-scroller {
       overflow: auto !important;
-    }
-
-    /* Mermaid Centering */
-    .mermaid-diagram {
-      display: flex;
-      justify-content: center;
-      margin: 1.5em 0;
     }
   </style>
 </head>

@@ -98,6 +98,78 @@ const GET_PRINT_STYLES = (orientation: 'portrait' | 'landscape') => `
   li { margin-bottom: 0.25em; }
   
   .katex-display { overflow-x: auto; overflow-y: hidden; padding: 1em 0; break-inside: avoid; }
+
+  /* Obsidian Callout Blocks */
+  .callout {
+    border: 1px solid color-mix(in srgb, var(--callout-color, #448aff) 30%, transparent);
+    border-left: 4px solid var(--callout-color, #448aff);
+    border-radius: 8px;
+    margin: 1em 0;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--callout-color, #448aff) 5%, white);
+    break-inside: avoid;
+  }
+  .callout-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    padding: 0.5em 0.8em;
+    font-weight: 700;
+    font-size: 0.9em;
+    color: var(--callout-color, #448aff);
+    background: color-mix(in srgb, var(--callout-color, #448aff) 8%, white);
+    border-bottom: 1px solid color-mix(in srgb, var(--callout-color, #448aff) 12%, transparent);
+  }
+  .callout-icon { font-size: 1em; }
+  .callout-content {
+    padding: 0.6em 0.8em;
+    font-size: 0.9em;
+  }
+  .callout-content > p:last-child { margin-bottom: 0; }
+  .callout-content > p:first-child { margin-top: 0; }
+
+  /* Highlight / Mark */
+  mark {
+    background: #fef08a;
+    padding: 0.1em 0.2em;
+    border-radius: 3px;
+    color: inherit;
+  }
+
+  /* Task Lists */
+  input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border: 2px solid #94a3b8;
+    border-radius: 3px;
+    margin-right: 4px;
+    position: relative;
+    vertical-align: middle;
+  }
+  input[type="checkbox"]:checked {
+    background: #4f46e5;
+    border-color: #4f46e5;
+  }
+  input[type="checkbox"]:checked::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 8px;
+    color: white;
+    font-weight: bold;
+  }
+
+  /* Enhanced HR */
+  hr {
+    border: none;
+    height: 2px;
+    background: linear-gradient(to right, transparent, #94a3b8, transparent);
+    margin: 1.5em 0;
+  }
 `;
 
 export const useExport = () => {

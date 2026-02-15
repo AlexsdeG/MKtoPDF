@@ -23,7 +23,7 @@ export async function parseMarkdown(content: string): Promise<string> {
             .use(remarkMath)
             .use(remarkRehype, { allowDangerousHtml: true })
             // rehype-highlight has no DOM dependency — safe for Worker
-            .use(rehypeHighlight, { ignoreMissing: true } as any)
+            .use(rehypeHighlight, { ignoreMissing: true, plainText: ['mermaid', 'math'] } as any)
             // NOTE: rehype-katex removed — it requires DOM. KaTeX renders on main thread.
             .use(rehypeStringify)
             .process(content);
