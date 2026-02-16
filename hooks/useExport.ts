@@ -207,6 +207,18 @@ export const useExport = () => {
         /* KaTeX */
         .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.5em 0; }
 
+        /* Hide KaTeX MathML block to prevent duplication (HTML + MathML) */
+        .katex-mathml {
+          clip: rect(1px, 1px, 1px, 1px) !important;
+          border: 0 !important;
+          height: 1px !important;
+          width: 1px !important;
+          overflow: hidden !important;
+          position: absolute !important;
+          padding: 0 !important;
+          margin: -1px !important;
+        }
+
         /* Print avoidance */
         pre, blockquote { page-break-inside: avoid; }
         h1, h2, h3 { page-break-after: avoid; }
@@ -225,6 +237,11 @@ export const useExport = () => {
       const doc = iframeWindow?.document;
       if (!doc || !iframeWindow) throw new Error('Could not access iframe document');
 
+      // Collect styles from main document to ensure plugins (KaTeX, Mermaid, etc.) work
+      const existingStyles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+        .map(el => el.outerHTML)
+        .join('');
+
       // Write content — simple approach with @page rules for print
       doc.open();
       doc.write(`<!DOCTYPE html>
@@ -232,6 +249,7 @@ export const useExport = () => {
 <head>
   <title>${title}</title>
   <meta charset="utf-8">
+  ${existingStyles}
   <style>${printStyles}</style>
 </head>
 <body>
