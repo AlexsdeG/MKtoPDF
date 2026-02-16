@@ -1,8 +1,12 @@
 # MKtoPDF
 
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Click_Here-blue?style=for-the-badge)](https://mktopdf.pro-grammer.de/)
+
 MKtoPDF is a high-performance, privacy-focused Markdown editor and PDF export engine. It leverages modern web technologies to provide a seamless writing experience with powerful features like LaTeX math rendering and Mermaid diagrams, all while keeping your data entirely local.
 
-## Key Features
+![Screenshot](./MKtoPDF.png)
+
+## Key Features **([Demo](https://mktopdf.pro-grammer.de/))**
 
 -   **🚀 High Performance**: Powered by a Web Worker to ensure the UI remains smooth even with large documents.
 -   **🔐 Privacy Centered**: No data ever leaves your machine. All processing happens locally in your browser.
