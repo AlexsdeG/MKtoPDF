@@ -179,13 +179,13 @@ export function transformCallouts(container: HTMLElement, settings?: StyleSettin
     const firstP = bq.querySelector('p:first-child');
     if (!firstP) return;
 
-    const textContent = firstP.innerHTML;
-    // Match [!type] or [!type] Title
+    const textContent = firstP.textContent || '';
+    // Match [!type] or [!type] Title on the text content (not innerHTML)
     const calloutMatch = textContent.match(/^\s*\[!([\w-]+)\]\s*(.*)/);
     if (!calloutMatch) return;
 
     const rawType = calloutMatch[1];
-    const titleText = calloutMatch[2] || rawType;
+    const titleText = calloutMatch[2]?.trim() || '';
     const resolvedType = resolveCalloutType(rawType);
     const typeDef = CALLOUT_TYPES[resolvedType] || CALLOUT_TYPES.note;
 
@@ -198,29 +198,34 @@ export function transformCallouts(container: HTMLElement, settings?: StyleSettin
     callout.setAttribute('data-callout', resolvedType);
     callout.style.setProperty('--callout-color', color);
 
-    // Title
+    // Title — use the extracted title or the type name capitalized
+    const displayTitle = titleText || resolvedType.charAt(0).toUpperCase() + resolvedType.slice(1);
     const titleDiv = document.createElement('div');
     titleDiv.className = 'callout-title';
     titleDiv.innerHTML = `
       <span class="callout-icon">${typeDef.icon}</span>
-      <span class="callout-title-text">${titleText || resolvedType.charAt(0).toUpperCase() + resolvedType.slice(1)}</span>
+      <span class="callout-title-text">${displayTitle}</span>
     `;
 
     // Content — everything after the first [!type] line
     const contentDiv = document.createElement('div');
     contentDiv.className = 'callout-content';
 
-    // Remove the callout syntax from the first paragraph
-    const remainingFirstP = textContent.replace(/^\s*\[![\w-]+\]\s*[^\n]*/, '').trim();
-    
-    // Collect all children except the first paragraph
+    // Get all children of the blockquote
     const children = Array.from(bq.childNodes);
     children.forEach((child, index) => {
       if (index === 0 && child === firstP) {
-        // Add remaining text from first paragraph if any
-        if (remainingFirstP) {
+        // The first paragraph contained the [!type] marker — check for remaining lines
+        // The innerHTML might have content after the [!type] Title line (separated by <br>)
+        const html = firstP.innerHTML;
+        // Remove everything up to and including the [!type] Title part
+        // Handle both plain text and HTML with <br> line breaks
+        const stripped = html
+          .replace(/^\s*\[![\w-]+\]\s*[^\n<]*(?:<br\s*\/?>)?/, '')
+          .trim();
+        if (stripped) {
           const p = document.createElement('p');
-          p.innerHTML = remainingFirstP;
+          p.innerHTML = stripped;
           contentDiv.appendChild(p);
         }
       } else {

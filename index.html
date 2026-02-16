@@ -229,19 +229,32 @@
        Tables
        =========================== */
       .prose-preview table {
-        border-collapse: collapse;
+        border-collapse: separate;
+        border-spacing: 0;
         width: 100%;
         margin: 1.25em 0;
-        border-radius: 8px;
+        border-radius: 10px;
         overflow: hidden;
         border: 1px solid #e2e8f0;
       }
 
       .prose-preview th,
       .prose-preview td {
-        border: 1px solid #e2e8f0;
+        border-bottom: 1px solid #e2e8f0;
+        border-right: 1px solid #e2e8f0;
         padding: 10px 14px;
         text-align: left;
+      }
+
+      /* Remove right border on last column to prevent doubling with table border */
+      .prose-preview th:last-child,
+      .prose-preview td:last-child {
+        border-right: none;
+      }
+
+      /* Remove bottom border on last row to prevent doubling */
+      .prose-preview tr:last-child td {
+        border-bottom: none;
       }
 
       .prose-preview th {
@@ -388,13 +401,15 @@
       /* ===========================
        Page Break
        =========================== */
-      .page-break {
+      .page-break,
+      hr.print-page-break {
         break-before: page;
         page-break-before: always;
         height: 0;
         margin: 0;
         padding: 0;
         border: none;
+        visibility: hidden;
       }
 
       /* ===========================

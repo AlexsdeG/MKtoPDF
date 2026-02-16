@@ -62,10 +62,45 @@ export const PreviewPane = forwardRef<HTMLDivElement, PreviewPaneProps>(({
     const contentHeight = contentRef.current.scrollHeight;
     const breaks: number[] = [];
     
-    let currentY = pageHeightPx;
-    while (currentY < contentHeight) {
-      breaks.push(currentY);
-      currentY += pageHeightPx;
+    // Find all explicit page-break elements in the DOM
+    const pageBreakEls = contentRef.current.querySelectorAll('.page-break, hr.print-page-break');
+    const explicitBreakPositions: number[] = [];
+    
+    pageBreakEls.forEach((el) => {
+      const rect = el.getBoundingClientRect();
+      const containerRect = contentRef.current!.getBoundingClientRect();
+      const relativeTop = rect.top - containerRect.top;
+      explicitBreakPositions.push(relativeTop);
+    });
+    
+    // Sort explicit breaks by position
+    explicitBreakPositions.sort((a, b) => a - b);
+    
+    // Build page breaks: combine explicit page-break positions with natural page height overflows
+    let lastBreakY = 0;
+    let explicitIdx = 0;
+    
+    while (lastBreakY < contentHeight) {
+      const nextNaturalBreak = lastBreakY + pageHeightPx;
+      
+      // Check if there's an explicit break before the next natural page break
+      if (explicitIdx < explicitBreakPositions.length && explicitBreakPositions[explicitIdx] < nextNaturalBreak && explicitBreakPositions[explicitIdx] > lastBreakY) {
+        // Use explicit break position
+        const breakPos = explicitBreakPositions[explicitIdx];
+        breaks.push(breakPos);
+        lastBreakY = breakPos;
+        explicitIdx++;
+      } else {
+        // Use natural page height
+        if (nextNaturalBreak < contentHeight) {
+          breaks.push(nextNaturalBreak);
+        }
+        lastBreakY = nextNaturalBreak;
+        // Skip any explicit breaks that fall within this page
+        while (explicitIdx < explicitBreakPositions.length && explicitBreakPositions[explicitIdx] <= lastBreakY) {
+          explicitIdx++;
+        }
+      }
     }
     
     setPageBreaks(breaks);

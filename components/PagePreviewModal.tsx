@@ -107,12 +107,81 @@ export const PagePreviewModal: React.FC<PagePreviewModalProps> = ({
       /* Ensure content uses variables and whitespace is preserved */
       .pagedjs_page .prose-preview {
          ${cssVarString}
-         white-space: pre-wrap; /* Preserve line breaks */
+         white-space: pre-wrap;
          word-wrap: break-word;
       }
       
       /* Hide PagedJS UI elements we don't need */
       .pagedjs_margin-content { font-size: 9pt; }
+
+      /* Inlined prose styles (PagedJS-safe: no color-mix, no transition, no hover) */
+      .prose-preview { font-family: var(--md-font-family, Inter, sans-serif); font-size: var(--md-font-size, 16px); color: var(--md-text-color, #1e293b); line-height: var(--md-line-height, 1.6); }
+      .prose-preview h1 { font-size: 2em; font-weight: 800; margin-bottom: 0.5em; margin-top: 1.5em; color: var(--md-heading-color, #1e293b); border-bottom: 2px solid #e2e8f0; padding-bottom: 0.25em; }
+      .prose-preview h2 { font-size: 1.5em; font-weight: 700; margin-bottom: 0.4em; margin-top: 1.5em; color: var(--md-heading-color, #1e293b); }
+      .prose-preview h3 { font-size: 1.25em; font-weight: 600; margin-bottom: 0.4em; margin-top: 1.3em; color: var(--md-heading-color, #1e293b); }
+      .prose-preview h4 { font-size: 1.1em; font-weight: 600; margin-bottom: 0.3em; margin-top: 1em; color: var(--md-heading-color, #1e293b); }
+      .prose-preview p { margin-bottom: 1em; line-height: var(--md-line-height, 1.6); text-align: var(--md-p-align, left); }
+      .prose-preview a { color: var(--md-accent-color, #4f46e5); text-decoration: underline; text-underline-offset: 2px; }
+      .prose-preview strong { font-weight: 700; }
+      .prose-preview em { font-style: italic; }
+
+      /* Lists */
+      .prose-preview ul { list-style-type: disc; margin-left: 1.5em; margin-bottom: 1em; }
+      .prose-preview ol { list-style-type: decimal; margin-left: 1.5em; margin-bottom: 1em; }
+      .prose-preview li { margin-bottom: 0.3em; }
+
+      /* Task Lists */
+      .prose-preview input[type="checkbox"] { width: 1.15em; height: 1.15em; border: 2px solid #94a3b8; border-radius: 4px; margin-top: 0.2em; margin-right: 0.5em; }
+
+      /* Blockquotes */
+      .prose-preview blockquote { border-left: 4px solid #cbd5e1; padding: 0.5em 1em; color: #64748b; font-style: italic; margin: 1em 0; background: #f8fafc; border-radius: 0 8px 8px 0; }
+
+      /* Code */
+      .prose-preview code { background-color: var(--md-code-bg, #f6f8fa); padding: 0.15em 0.4em; border-radius: 5px; font-family: 'Fira Code', 'JetBrains Mono', ui-monospace, monospace; font-size: 0.875em; border: 1px solid #e2e8f0; }
+      .prose-preview pre { background-color: var(--md-code-bg, #f6f8fa); padding: 1em 1.25em; border-radius: 10px; overflow-x: auto; margin-bottom: 1.25em; border: 1px solid #e2e8f0; }
+      .prose-preview pre code { background-color: transparent; padding: 0; border: none; font-size: 0.9em; }
+
+      /* Tables */
+      .prose-preview table { border-collapse: separate; border-spacing: 0; width: 100%; margin: 1.25em 0; border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0; }
+      .prose-preview th, .prose-preview td { border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; padding: 10px 14px; text-align: left; }
+      .prose-preview th:last-child, .prose-preview td:last-child { border-right: none; }
+      .prose-preview tr:last-child td { border-bottom: none; }
+      .prose-preview th { background: linear-gradient(to bottom, #f1f5f9, #e2e8f0); font-weight: 600; font-size: 0.9em; text-transform: uppercase; letter-spacing: 0.03em; color: #475569; }
+      .prose-preview tr:nth-child(even) td { background-color: #fafbfc; }
+
+      /* Horizontal Rule */
+      .prose-preview hr { border: none; height: 3px; background: var(--md-accent-color, #4f46e5); margin: 2em 0; border-radius: 2px; opacity: 0.5; }
+
+      /* Images */
+      .prose-preview img { max-width: 100%; height: auto; border-radius: 10px; margin: 1.5em auto; display: block; }
+
+      /* Page Break */
+      .page-break, hr.print-page-break { break-before: page; page-break-before: always; height: 0; margin: 0; padding: 0; border: none; visibility: hidden; }
+
+      /* Callout Styles */
+      .callout { border: 1px solid rgba(68, 138, 255, 0.3); border-left: 4px solid #448aff; border-radius: 10px; margin: 1.25em 0; overflow: hidden; background: rgba(68, 138, 255, 0.05); }
+      .callout-title { display: flex; align-items: center; gap: 0.5em; padding: 0.65em 1em; font-weight: 700; font-size: 0.95em; color: #448aff; background: rgba(68, 138, 255, 0.1); border-bottom: 1px solid rgba(68, 138, 255, 0.15); }
+      .callout-icon { font-size: 1.1em; }
+      .callout-title-text { flex: 1; }
+      .callout-content { padding: 0.75em 1em; font-size: 0.95em; color: #475569; }
+
+      /* Code Language Label */
+      .code-block-wrapper { position: relative; margin-bottom: 1.25em; }
+      .code-block-wrapper > pre { margin-bottom: 0; border-top-left-radius: 0; border-top-right-radius: 0; margin-top: 0; }
+      .code-language-label { display: block; font-size: 0.7em; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.35em 1em; font-family: 'Fira Code', 'JetBrains Mono', ui-monospace, monospace; background: var(--md-code-bg, #f6f8fa); border: 1px solid #e2e8f0; border-bottom: none; border-radius: 10px 10px 0 0; }
+
+      /* Mermaid */
+      .mermaid-diagram { display: flex; justify-content: center; margin: 1.5em 0; }
+
+      /* Mark / Highlight */
+      mark { background: linear-gradient(120deg, #fef08a 0%, #fde047 100%); padding: 0.1em 0.3em; border-radius: 4px; color: inherit; }
+
+      /* KaTeX */
+      .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.5em 0; }
+
+      /* Print avoidance */
+      pre, blockquote { page-break-inside: avoid; }
+      h1, h2, h3 { page-break-after: avoid; }
     `;
 
     // Use Blob URL for cleaner CSS injection
@@ -142,7 +211,7 @@ export const PagePreviewModal: React.FC<PagePreviewModalProps> = ({
 
       await previewer.preview(
         contentWrapper,
-        ['/index.css', stylesUrl],
+        [stylesUrl],
         containerRef.current!
       );
 
