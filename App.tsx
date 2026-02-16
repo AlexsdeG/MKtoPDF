@@ -7,12 +7,13 @@ import { StylesModal } from './components/StylesModal';
 import { PagePreviewModal } from './components/PagePreviewModal';
 import { EditorView } from '@codemirror/view';
 import { sanitizeHtml } from './lib/markdownEngine';
+import { preprocessMarkdown } from './lib/markdownPreprocess';
 import { parseMarkdown } from './lib/markdownParser';
 import { useExport } from './hooks/useExport';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { ViewMode } from './types';
 import { StyleSettings, DEFAULT_STYLE_SETTINGS } from './lib/styleSettings';
-import { Printer, Save, RefreshCw, Palette, Edit2, Link as LinkIcon, Unlink } from 'lucide-react';
+import { Printer, Save, RefreshCw, Palette, Edit2, Link as LinkIcon, Unlink, FileText, Ruler } from 'lucide-react';
 import clsx from 'clsx';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
@@ -91,6 +92,7 @@ const App: React.FC = () => {
   const [styleSettings, setStyleSettings] = useLocalStorage<StyleSettings>('MD_STYLE_SETTINGS', DEFAULT_STYLE_SETTINGS);
   const [documentTitle, setDocumentTitle] = useLocalStorage<string>('MD_DOC_TITLE', 'Untitled Document');
   const [isSyncScrollEnabled, setIsSyncScrollEnabled] = useLocalStorage<boolean>('MD_SYNC_SCROLL', true);
+  const [showPageBreakLines, setShowPageBreakLines] = useState(false);
 
   const [htmlOutput, setHtmlOutput] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -161,7 +163,8 @@ const App: React.FC = () => {
   const processOnMainThread = useCallback(async (content: string) => {
     try {
       setIsProcessing(true);
-      const rawHtml = await parseMarkdown(content);
+      const preprocessed = preprocessMarkdown(content);
+      const rawHtml = await parseMarkdown(preprocessed);
       const cleanHtml = sanitizeHtml(rawHtml);
       setHtmlOutput(cleanHtml);
     } catch (error) {
@@ -277,7 +280,7 @@ const App: React.FC = () => {
           isOpen={isPagePreviewOpen}
           onClose={() => setIsPagePreviewOpen(false)}
           htmlContent={htmlOutput}
-          orientation={orientation}
+          initialOrientation={orientation}
           styleSettings={styleSettings}
         />
 
@@ -287,7 +290,7 @@ const App: React.FC = () => {
             <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 flex-shrink-0">
               MKtoPDF
             </span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 flex-shrink-0">v0.6.2</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 flex-shrink-0">v0.6.5</span>
             
             <div className="h-6 w-px bg-gray-300 mx-2 flex-shrink-0"></div>
             
@@ -360,6 +363,27 @@ const App: React.FC = () => {
             )}
 
             <button
+              onClick={() => setShowPageBreakLines(!showPageBreakLines)}
+              className={clsx(
+                "p-1.5 rounded transition-colors",
+                showPageBreakLines
+                  ? "text-indigo-600 bg-indigo-50"
+                  : "text-gray-500 hover:text-indigo-600 hover:bg-indigo-50"
+              )}
+              title={showPageBreakLines ? "Hide Page Break Lines" : "Show Page Break Lines"}
+            >
+              <Ruler size={16} />
+            </button>
+
+            <button
+              onClick={() => setIsPagePreviewOpen(true)}
+              className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+              title="Page Preview"
+            >
+              <FileText size={16} />
+            </button>
+
+            <button
               onClick={() => setIsStylesOpen(true)}
               className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
               title="Style Settings"
@@ -411,10 +435,8 @@ const App: React.FC = () => {
             viewMode === 'split' ? "w-1/2" : "w-full"
           )}>
             {/* Toolbar - Only visible in editor/split mode */}
-            {/* Pass onOpenPagePreview callback */}
             <Toolbar 
               editorView={editorView} 
-              onOpenPagePreview={() => setIsPagePreviewOpen(true)} 
             />
 
             <div className="flex-1 overflow-hidden">
@@ -436,7 +458,9 @@ const App: React.FC = () => {
             <PreviewPane 
                 ref={previewRef}
                 htmlContent={htmlOutput} 
-                styleSettings={styleSettings} 
+                styleSettings={styleSettings}
+                showPageBreakLines={showPageBreakLines}
+                orientation={orientation}
             />
           </div>
 

@@ -56,7 +56,7 @@ const Portal: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return ReactDOM.createPortal(children, document.body);
 };
 
-export const Toolbar: React.FC<ToolbarProps> = ({ editorView, onOpenPagePreview }) => {
+export const Toolbar: React.FC<ToolbarProps> = ({ editorView }) => {
   // Use unique keys for dropdown management
   // null = no dropdown open
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -449,9 +449,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({ editorView, onOpenPagePreview 
         {/* Page preview */}
         <div className="flex items-center gap-0.5 px-0.5">
            <IconButton icon={FileText} onClick={insertPageBreak} title="Insert Page Break" />
-           {onOpenPagePreview && (
-            <IconButton icon={Palette} onClick={onOpenPagePreview} title="Page Preview" />
-           )}
         </div>
       </div>
 

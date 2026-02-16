@@ -14,10 +14,12 @@ if (typeof self !== 'undefined' && typeof (self as any).document === 'undefined'
 }
 
 import { parseMarkdown } from '../lib/markdownParser';
+import { preprocessMarkdown } from '../lib/markdownPreprocess';
 
 /**
  * Worker message handler.
- * Receives raw Markdown string, processes it, and posts back the result (or error).
+ * Receives raw Markdown string, pre-processes it (==mark== syntax), 
+ * then parses to HTML and posts back the result (or error).
  */
 self.onmessage = async (e: MessageEvent) => {
   const content = e.data;
@@ -28,7 +30,9 @@ self.onmessage = async (e: MessageEvent) => {
   }
 
   try {
-    const rawHtml = await parseMarkdown(content);
+    // Pre-process ==highlight== syntax before parsing
+    const preprocessed = preprocessMarkdown(content);
+    const rawHtml = await parseMarkdown(preprocessed);
     self.postMessage({ type: 'success', html: rawHtml });
   } catch (error) {
     self.postMessage({ type: 'error', message: (error as Error).message });
