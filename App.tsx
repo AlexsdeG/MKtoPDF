@@ -177,15 +177,11 @@ const App: React.FC = () => {
   // Initialize Worker on mount
   useEffect(() => {
     try {
-      let workerUrl: URL;
-
-      if (typeof import.meta !== 'undefined' && import.meta.url) {
-        workerUrl = new URL('./workers/markdown.worker.ts', import.meta.url);
-      } else {
-        workerUrl = new URL('./workers/markdown.worker.ts', window.location.origin + '/src/');
-      }
-
-      workerRef.current = new Worker(workerUrl, { type: 'module' });
+      // Vite-compliant worker initialization
+      workerRef.current = new Worker(
+        new URL('./workers/markdown.worker.ts', import.meta.url),
+        { type: 'module' }
+      );
 
       workerRef.current.onmessage = (e) => {
         const { type, html, message } = e.data;
@@ -201,6 +197,9 @@ const App: React.FC = () => {
 
       workerRef.current.onerror = (e) => {
         console.error("Worker runtime error:", e);
+        // Fallback to main thread if worker fails at runtime
+        usingFallback.current = true;
+        processOnMainThread(markdownInput);
       };
 
       // Initial process
