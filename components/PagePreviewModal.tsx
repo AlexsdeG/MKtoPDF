@@ -114,10 +114,32 @@ export const PagePreviewModal: React.FC<PagePreviewModalProps> = ({
       /* Hide PagedJS UI elements we don't need */
       .pagedjs_margin-content { font-size: 9pt; }
 
-      /* Inlined prose styles (PagedJS-safe: no color-mix, no transition, no hover) */
-      .prose-preview { font-family: var(--md-font-family, Inter, sans-serif); font-size: var(--md-font-size, 16px); color: var(--md-text-color, #1e293b); line-height: var(--md-line-height, 1.6); }
-      .prose-preview h1 { font-size: 2em; font-weight: 800; margin-bottom: 0.5em; margin-top: 1.5em; color: var(--md-heading-color, #1e293b); border-bottom: 2px solid #e2e8f0; padding-bottom: 0.25em; }
-      .prose-preview h2 { font-size: 1.5em; font-weight: 700; margin-bottom: 0.4em; margin-top: 1.5em; color: var(--md-heading-color, #1e293b); }
+      /* Inlined prose styles — exact match with index.html (PagedJS-safe: no color-mix, no transition) */
+      .prose-preview {
+        font-family: var(--md-font-family, 'Inter', ui-sans-serif, system-ui, sans-serif);
+        font-size: var(--md-font-size, 16px);
+        line-height: var(--md-line-height, 1.6);
+        color: var(--md-text-color, #334155);
+        background-color: var(--md-bg-color, #ffffff);
+        max-width: var(--md-max-width, 900px);
+        margin: 0 auto;
+      }
+      .prose-preview h1 {
+        font-size: 2em; font-weight: 800;
+        margin-bottom: 0.5em; margin-top: 1.2em;
+        color: var(--md-heading-color, #1e293b);
+        letter-spacing: -0.02em;
+        border-bottom: 2px solid var(--md-accent-color, #4f46e5);
+        padding-bottom: 0.2em;
+      }
+      .prose-preview h2 {
+        font-size: 1.5em; font-weight: 700;
+        margin-bottom: 0.5em; margin-top: 1.5em;
+        color: var(--md-heading-color, #1e293b);
+        letter-spacing: -0.01em;
+        border-bottom: 1px solid #e2e8f0;
+        padding-bottom: 0.15em;
+      }
       .prose-preview h3 { font-size: 1.25em; font-weight: 600; margin-bottom: 0.4em; margin-top: 1.3em; color: var(--md-heading-color, #1e293b); }
       .prose-preview h4 { font-size: 1.1em; font-weight: 600; margin-bottom: 0.3em; margin-top: 1em; color: var(--md-heading-color, #1e293b); }
       .prose-preview p { margin-bottom: 1em; line-height: var(--md-line-height, 1.6); text-align: var(--md-p-align, left); }
@@ -129,12 +151,14 @@ export const PagePreviewModal: React.FC<PagePreviewModalProps> = ({
       .prose-preview ul { list-style-type: disc; margin-left: 1.5em; margin-bottom: 1em; }
       .prose-preview ol { list-style-type: decimal; margin-left: 1.5em; margin-bottom: 1em; }
       .prose-preview li { margin-bottom: 0.3em; }
+      .prose-preview li > ul, .prose-preview li > ol { margin-top: 0.3em; margin-bottom: 0; }
 
       /* Task Lists */
       .prose-preview input[type="checkbox"] { width: 1.15em; height: 1.15em; border: 2px solid #94a3b8; border-radius: 4px; margin-top: 0.2em; margin-right: 0.5em; }
 
       /* Blockquotes */
       .prose-preview blockquote { border-left: 4px solid #cbd5e1; padding: 0.5em 1em; color: #64748b; font-style: italic; margin: 1em 0; background: #f8fafc; border-radius: 0 8px 8px 0; }
+      .prose-preview blockquote > p:last-child { margin-bottom: 0; }
 
       /* Code */
       .prose-preview code { background-color: var(--md-code-bg, #f6f8fa); padding: 0.15em 0.4em; border-radius: 5px; font-family: 'Fira Code', 'JetBrains Mono', ui-monospace, monospace; font-size: 0.875em; border: 1px solid #e2e8f0; }
@@ -161,9 +185,12 @@ export const PagePreviewModal: React.FC<PagePreviewModalProps> = ({
       /* Callout Styles */
       .callout { border: 1px solid rgba(68, 138, 255, 0.3); border-left: 4px solid #448aff; border-radius: 10px; margin: 1.25em 0; overflow: hidden; background: rgba(68, 138, 255, 0.05); }
       .callout-title { display: flex; align-items: center; gap: 0.5em; padding: 0.65em 1em; font-weight: 700; font-size: 0.95em; color: #448aff; background: rgba(68, 138, 255, 0.1); border-bottom: 1px solid rgba(68, 138, 255, 0.15); }
-      .callout-icon { font-size: 1.1em; }
+      .callout-icon { font-size: 1.1em; flex-shrink: 0; }
       .callout-title-text { flex: 1; }
       .callout-content { padding: 0.75em 1em; font-size: 0.95em; color: #475569; }
+      .callout-content > p:last-child { margin-bottom: 0; }
+      .callout-content > p:first-child { margin-top: 0; }
+      .callout-content ul, .callout-content ol { margin-left: 1.2em; margin-bottom: 0.5em; }
 
       /* Code Language Label */
       .code-block-wrapper { position: relative; margin-bottom: 1.25em; }

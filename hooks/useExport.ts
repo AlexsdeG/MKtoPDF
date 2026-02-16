@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
-import { StyleSettings, stylesToCSSVars } from '../lib/styleSettings';
+import { StyleSettings } from '../lib/styleSettings';
 
 export const useExport = () => {
   const [isExporting, setIsExporting] = useState(false);
@@ -15,11 +15,6 @@ export const useExport = () => {
     const toastId = toast.loading('Preparing PDF...');
 
     try {
-      // Construct CSS variables
-      const cssVars = stylesToCSSVars(settings);
-      const cssVarString = Object.entries(cssVars)
-        .map(([key, val]) => `${key}: ${val};`)
-        .join('\n');
 
       // Direct interpolation for header/footer to avoid PagedJS parsing issues with var()
       const headerLeft = settings.headerLeft ? `"${settings.headerLeft.replace(/"/g, '\\"')}"` : '""';
@@ -44,6 +39,21 @@ export const useExport = () => {
 
       const processedHtml = tempContainer.innerHTML;
 
+      // Resolve CSS vars to literal values for the iframe (iframe can't inherit parent CSS vars)
+      const FONT_FAMILIES: Record<string, string> = {
+        sans: "'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif",
+        serif: "'Georgia', 'Times New Roman', serif",
+        mono: "'Fira Code', 'JetBrains Mono', ui-monospace, monospace",
+      };
+      const fontFamily = FONT_FAMILIES[settings.fontFamily] || FONT_FAMILIES.sans;
+      const fontSize = `${settings.fontSize}px`;
+      const lineHeight = `${settings.lineHeight}`;
+      const textColor = settings.textColor || '#334155';
+      const headingColor = settings.headingColor || '#1e293b';
+      const accentColor = settings.accentColor || '#4f46e5';
+      const codeBg = settings.codeBgColor || '#f6f8fa';
+      const pAlign = settings.paragraphAlign || 'left';
+
       const printStyles = `
         @page {
           size: A4 ${orientation};
@@ -52,26 +62,44 @@ export const useExport = () => {
 
         @media print {
           body { margin: 0; padding: 0; background: white; }
-          .prose-preview { ${cssVarString} }
         }
 
-        /* Base Styles */
-        :root { ${cssVarString} }
+        /* Base Styles — all resolved to literal values */
         body { margin: 0; padding: 20mm; background: white; }
 
         .prose-preview {
-          ${cssVarString}
+          font-family: ${fontFamily};
+          font-size: ${fontSize};
+          line-height: ${lineHeight};
+          color: ${textColor};
+          background-color: #ffffff;
+          max-width: 900px;
+          margin: 0 auto;
           white-space: pre-wrap;
           word-wrap: break-word;
         }
 
-        /* Typography */
-        .prose-preview h1 { font-size: 2em; font-weight: 800; margin-bottom: 0.5em; margin-top: 1.5em; color: var(--md-heading-color, #1e293b); border-bottom: 2px solid #e2e8f0; padding-bottom: 0.25em; }
-        .prose-preview h2 { font-size: 1.5em; font-weight: 700; margin-bottom: 0.4em; margin-top: 1.5em; color: var(--md-heading-color, #1e293b); }
-        .prose-preview h3 { font-size: 1.25em; font-weight: 600; margin-bottom: 0.4em; margin-top: 1.3em; color: var(--md-heading-color, #1e293b); }
-        .prose-preview h4 { font-size: 1.1em; font-weight: 600; margin-bottom: 0.3em; margin-top: 1em; color: var(--md-heading-color, #1e293b); }
-        .prose-preview p { margin-bottom: 1em; line-height: var(--md-line-height, 1.6); text-align: var(--md-p-align, left); }
-        .prose-preview a { color: var(--md-accent-color, #4f46e5); text-decoration: underline; text-underline-offset: 2px; }
+        /* Typography — exact match with index.html */
+        .prose-preview h1 {
+          font-size: 2em; font-weight: 800;
+          margin-bottom: 0.5em; margin-top: 1.2em;
+          color: ${headingColor};
+          letter-spacing: -0.02em;
+          border-bottom: 2px solid ${accentColor};
+          padding-bottom: 0.2em;
+        }
+        .prose-preview h2 {
+          font-size: 1.5em; font-weight: 700;
+          margin-bottom: 0.5em; margin-top: 1.5em;
+          color: ${headingColor};
+          letter-spacing: -0.01em;
+          border-bottom: 1px solid #e2e8f0;
+          padding-bottom: 0.15em;
+        }
+        .prose-preview h3 { font-size: 1.25em; font-weight: 600; margin-bottom: 0.4em; margin-top: 1.3em; color: ${headingColor}; }
+        .prose-preview h4 { font-size: 1.1em; font-weight: 600; margin-bottom: 0.3em; margin-top: 1em; color: ${headingColor}; }
+        .prose-preview p { margin-bottom: 1em; line-height: ${lineHeight}; text-align: ${pAlign}; }
+        .prose-preview a { color: ${accentColor}; text-decoration: underline; text-underline-offset: 2px; }
         .prose-preview strong { font-weight: 700; }
         .prose-preview em { font-style: italic; }
 
@@ -83,15 +111,15 @@ export const useExport = () => {
 
         /* Task Lists */
         .prose-preview input[type="checkbox"] { width: 1.15em; height: 1.15em; border: 2px solid #94a3b8; border-radius: 4px; margin-top: 0.2em; margin-right: 0.5em; }
-        .prose-preview input[type="checkbox"]:checked { background-color: var(--md-accent-color, #4f46e5); border-color: var(--md-accent-color, #4f46e5); }
+        .prose-preview input[type="checkbox"]:checked { background-color: ${accentColor}; border-color: ${accentColor}; }
 
         /* Blockquotes */
         .prose-preview blockquote { border-left: 4px solid #cbd5e1; padding: 0.5em 1em; color: #64748b; font-style: italic; margin: 1em 0; background: #f8fafc; border-radius: 0 8px 8px 0; }
         .prose-preview blockquote > p:last-child { margin-bottom: 0; }
 
         /* Code */
-        .prose-preview code { background-color: var(--md-code-bg, #f6f8fa); padding: 0.15em 0.4em; border-radius: 5px; font-family: 'Fira Code', 'JetBrains Mono', ui-monospace, monospace; font-size: 0.875em; border: 1px solid #e2e8f0; }
-        .prose-preview pre { background-color: var(--md-code-bg, #f6f8fa); padding: 1em 1.25em; border-radius: 10px; overflow-x: auto; margin-bottom: 1.25em; border: 1px solid #e2e8f0; }
+        .prose-preview code { background-color: ${codeBg}; padding: 0.15em 0.4em; border-radius: 5px; font-family: 'Fira Code', 'JetBrains Mono', ui-monospace, monospace; font-size: 0.875em; border: 1px solid #e2e8f0; }
+        .prose-preview pre { background-color: ${codeBg}; padding: 1em 1.25em; border-radius: 10px; overflow-x: auto; margin-bottom: 1.25em; border: 1px solid #e2e8f0; }
         .prose-preview pre code { background-color: transparent; padding: 0; border: none; font-size: 0.9em; }
 
         /* Tables */
@@ -103,7 +131,7 @@ export const useExport = () => {
         .prose-preview tr:nth-child(even) td { background-color: #fafbfc; }
 
         /* Horizontal Rule */
-        .prose-preview hr { border: none; height: 3px; background: var(--md-accent-color, #4f46e5); margin: 2em 0; border-radius: 2px; opacity: 0.5; }
+        .prose-preview hr { border: none; height: 3px; background: ${accentColor}; margin: 2em 0; border-radius: 2px; opacity: 0.5; }
 
         /* Images */
         .prose-preview img { max-width: 100%; height: auto; border-radius: 10px; margin: 1.5em auto; display: block; }
@@ -117,13 +145,14 @@ export const useExport = () => {
         .callout-icon { font-size: 1.1em; flex-shrink: 0; }
         .callout-title-text { flex: 1; }
         .callout-content { padding: 0.75em 1em; font-size: 0.95em; color: #475569; }
-        .callout-content>p:last-child { margin-bottom: 0; }
-        .callout-content>p:first-child { margin-top: 0; }
+        .callout-content > p:last-child { margin-bottom: 0; }
+        .callout-content > p:first-child { margin-top: 0; }
+        .callout-content ul, .callout-content ol { margin-left: 1.2em; margin-bottom: 0.5em; }
 
         /* Code Language Label */
         .code-block-wrapper { position: relative; margin-bottom: 1.25em; }
         .code-block-wrapper > pre { margin-bottom: 0; border-top-left-radius: 0; border-top-right-radius: 0; margin-top: 0; }
-        .code-language-label { display: block; font-size: 0.7em; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.35em 1em; font-family: 'Fira Code', 'JetBrains Mono', ui-monospace, monospace; background: var(--md-code-bg, #f6f8fa); border: 1px solid #e2e8f0; border-bottom: none; border-radius: 10px 10px 0 0; }
+        .code-language-label { display: block; font-size: 0.7em; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.35em 1em; font-family: 'Fira Code', 'JetBrains Mono', ui-monospace, monospace; background: ${codeBg}; border: 1px solid #e2e8f0; border-bottom: none; border-radius: 10px 10px 0 0; }
 
         /* Mermaid */
         .mermaid-diagram { display: flex; justify-content: center; margin: 1.5em 0; }

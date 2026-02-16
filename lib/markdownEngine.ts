@@ -213,8 +213,8 @@ export function transformCallouts(container: HTMLElement, settings?: StyleSettin
 
     // Get all children of the blockquote
     const children = Array.from(bq.childNodes);
-    children.forEach((child, index) => {
-      if (index === 0 && child === firstP) {
+    children.forEach((child) => {
+      if (child === firstP) {
         // The first paragraph contained the [!type] marker — check for remaining lines
         // The innerHTML might have content after the [!type] Title line (separated by <br>)
         const html = firstP.innerHTML;
@@ -228,7 +228,11 @@ export function transformCallouts(container: HTMLElement, settings?: StyleSettin
           p.innerHTML = stripped;
           contentDiv.appendChild(p);
         }
-      } else {
+      } else if (child.nodeType === 1) {
+        // Only clone element nodes, skip whitespace-only text nodes
+        contentDiv.appendChild(child.cloneNode(true));
+      } else if (child.nodeType === 3 && child.textContent && child.textContent.trim()) {
+        // Clone non-empty text nodes
         contentDiv.appendChild(child.cloneNode(true));
       }
     });
