@@ -446,7 +446,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ editorView }) => {
 
         <Separator />
 
-        {/* Page preview */}
+        {/* Page Break */}
         <div className="flex items-center gap-0.5 px-0.5">
            <IconButton icon={FileText} onClick={insertPageBreak} title="Insert Page Break" />
         </div>

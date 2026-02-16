@@ -241,9 +241,9 @@ const App: React.FC = () => {
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
 
   const handleExport = () => {
-    const previewElement = document.querySelector('.prose-preview');
-    const contentToPrint = previewElement ? previewElement.innerHTML : htmlOutput;
-    printPdf(contentToPrint, orientation, styleSettings, documentTitle);
+    // OLD BUGGY WAY: reading innerHTML from the DOM (which is already processed) causing double-processing
+    // NEW FIX: use the raw sanitized HTML from the worker
+    printPdf(htmlOutput, orientation, styleSettings, documentTitle);
   };
 
   const handleReset = () => {

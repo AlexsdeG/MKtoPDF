@@ -221,7 +221,7 @@ export function transformCallouts(container: HTMLElement, settings?: StyleSettin
         // Remove everything up to and including the [!type] Title part
         // Handle both plain text and HTML with <br> line breaks
         const stripped = html
-          .replace(/^\s*\[![\w-]+\]\s*[^\n<]*(?:<br\s*\/?>)?/, '')
+          .replace(/^\s*\[![\w-]+\]\s*[^\n<]*(?:<br\s*\/?>)?/i, '')
           .trim();
         if (stripped) {
           const p = document.createElement('p');

@@ -55,15 +55,6 @@ export const useExport = () => {
       const pAlign = settings.paragraphAlign || 'left';
 
       const printStyles = `
-        @page {
-          size: A4 ${orientation};
-          margin: 20mm;
-        }
-
-        @media print {
-          body { margin: 0; padding: 0; background: white; }
-        }
-
         /* Base Styles — all resolved to literal values */
         body { margin: 0; padding: 20mm; background: white; }
 
@@ -77,6 +68,59 @@ export const useExport = () => {
           margin: 0 auto;
           white-space: pre-wrap;
           word-wrap: break-word;
+        }
+
+        /* Print Page Setup */
+        @page {
+          size: A4 ${orientation};
+          margin: 20mm; /* Browser print margin */
+        }
+
+        @media print {
+          body { 
+            margin: 0; 
+            padding: 0; 
+            background: white; 
+          }
+          
+          .prose-preview {
+            max-width: none !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            
+            /* Fix extra newlines handling */
+            white-space: normal !important; 
+            
+            /* Increase font size for print specifically */
+            font-size: 12pt !important;
+            line-height: 1.5 !important;
+          }
+          
+          /* Tighten spacing for print */
+          .prose-preview p, 
+          .prose-preview ul, 
+          .prose-preview ol,
+          .prose-preview li {
+            margin-bottom: 0.5em !important;
+          }
+          
+          /* Prevent awkward breaks */
+          .prose-preview pre, 
+          .prose-preview blockquote,
+          .prose-preview table,
+          .callout { 
+            page-break-inside: avoid; 
+          }
+          
+          /* Ensure headings stick to content */
+          .prose-preview h1, 
+          .prose-preview h2, 
+          .prose-preview h3,
+          .prose-preview h4 { 
+            page-break-after: avoid;
+            margin-top: 1em !important; 
+          }
         }
 
         /* Typography — exact match with index.html */
