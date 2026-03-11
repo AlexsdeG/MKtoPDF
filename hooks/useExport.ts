@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { StyleSettings } from '../lib/styleSettings';
+import { inlineImageSourcesForExport } from '../lib/sessionImages';
 
 export const useExport = () => {
   const [isExporting, setIsExporting] = useState(false);
@@ -9,7 +10,8 @@ export const useExport = () => {
     contentHtml: string,
     orientation: 'portrait' | 'landscape' = 'portrait',
     settings: StyleSettings,
-    title: string = 'Document'
+    title: string = 'Document',
+    imageSources: Record<string, string> = {}
   ) => {
     setIsExporting(true);
     const toastId = toast.loading('Preparing PDF...');
@@ -33,6 +35,7 @@ export const useExport = () => {
       
       try {
         await postProcessHtml(tempContainer, settings);
+        await inlineImageSourcesForExport(tempContainer, imageSources);
       } catch (err) {
         console.warn('Post-processing warning during export:', err);
       }

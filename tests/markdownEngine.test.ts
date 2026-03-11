@@ -67,4 +67,10 @@ describe('Markdown Engine', () => {
     expect(output).toContain('Hello');
     expect(output).not.toContain('<script>');
   });
+
+  it('should preserve mkimg URLs for internal image rendering', async () => {
+    const input = '![alt](mkimg://internal-123)';
+    const output = await processMarkdown(input);
+    expect(output).toContain('src="mkimg://internal-123"');
+  });
 });

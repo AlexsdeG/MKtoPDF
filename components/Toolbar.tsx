@@ -8,7 +8,7 @@ import {
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   Undo2, Redo2, Table, Palette,
   Type, Superscript, Subscript, FileText,
-  Paintbrush, ChevronDown
+  Paintbrush, ChevronDown, Upload
 } from 'lucide-react';
 import clsx from 'clsx';
 import { EditorView } from '@codemirror/view';
@@ -17,6 +17,7 @@ import { undo, redo } from '@codemirror/commands';
 interface ToolbarProps {
   editorView: EditorView | null;
   onOpenPagePreview?: () => void;
+  onOpenImageManager?: () => void;
 }
 
 const FONT_OPTIONS = [
@@ -56,7 +57,7 @@ const Portal: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return ReactDOM.createPortal(children, document.body);
 };
 
-export const Toolbar: React.FC<ToolbarProps> = ({ editorView }) => {
+export const Toolbar: React.FC<ToolbarProps> = ({ editorView, onOpenImageManager }) => {
   // Use unique keys for dropdown management
   // null = no dropdown open
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -437,6 +438,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ editorView }) => {
         <div className="flex items-center gap-0.5 px-0.5">
           <IconButton icon={Link} onClick={wrapLink} title="Link" />
           <IconButton icon={Image} onClick={insertImage} title="Image" />
+          <IconButton icon={Upload} onClick={() => onOpenImageManager?.()} title="Upload / Manage Images" />
           <IconButton icon={Quote} onClick={() => executeCommand('>', '', true)} title="Quote" />
           <IconButton icon={Table} onClick={insertTable} title="Table" />
           <IconButton icon={Minus} onClick={() => executeCommand('---\n', '', true)} title="Horizontal Rule" />

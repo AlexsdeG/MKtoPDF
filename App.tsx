@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Toaster } from 'sonner';
 import { EditorPane } from './components/EditorPane';
 import { PreviewPane } from './components/PreviewPane';
 import { Toolbar } from './components/Toolbar';
 import { StylesModal } from './components/StylesModal';
 import { PagePreviewModal } from './components/PagePreviewModal';
+import { ImageManagerModal } from './components/ImageManagerModal';
 import { EditorView } from '@codemirror/view';
 import { sanitizeHtml } from './lib/markdownEngine';
 import { preprocessMarkdown } from './lib/markdownPreprocess';
@@ -16,6 +17,15 @@ import { StyleSettings, DEFAULT_STYLE_SETTINGS } from './lib/styleSettings';
 import { Printer, Save, RefreshCw, Palette, Edit2, Link as LinkIcon, Unlink, FileText, Ruler } from 'lucide-react';
 import clsx from 'clsx';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { toast } from 'sonner';
+import {
+  SessionImageAsset,
+  createSessionImageAsset,
+  validateImageFile,
+  buildInternalImageUrl,
+  restoreImagesFromStorage,
+  serializeImagesForStorage,
+} from './lib/sessionImages';
 
 const DEFAULT_MARKDOWN = `# Welcome to MKtoPDF
 
@@ -84,6 +94,7 @@ graph TD
 `;
 
 const DEBOUNCE_MS = 300;
+const IMAGE_STORAGE_KEY = 'MD_SESSION_IMAGES';
 
 const App: React.FC = () => {
   // Persistence using localStorage
@@ -102,6 +113,9 @@ const App: React.FC = () => {
   // Modal states
   const [isStylesOpen, setIsStylesOpen] = useState(false);
   const [isPagePreviewOpen, setIsPagePreviewOpen] = useState(false);
+  const [isImageManagerOpen, setIsImageManagerOpen] = useState(false);
+  const [sessionImages, setSessionImages] = useState<SessionImageAsset[]>([]);
+  const sessionImagesRef = useRef<SessionImageAsset[]>([]);
   
   // Title editing state
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -239,10 +253,93 @@ const App: React.FC = () => {
 
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
 
+  const sessionImageMap = useMemo(
+    () => Object.fromEntries(sessionImages.map((img) => [img.id, img.objectUrl])),
+    [sessionImages]
+  );
+
+  const insertImageMarkdown = useCallback((imageId: string, imageName?: string) => {
+    if (!editorView) {
+      toast.info('Image uploaded. Open editor to insert markdown.');
+      return;
+    }
+
+    const state = editorView.state;
+    const selection = state.selection.main;
+    const safeName = imageName?.replace(/\.[^/.]+$/, '') || 'alt text';
+    const insert = `![${safeName}](${buildInternalImageUrl(imageId)})`;
+
+    editorView.dispatch(state.update({
+      changes: { from: selection.from, to: selection.to, insert },
+      selection: { anchor: selection.from + 2, head: selection.from + 2 + safeName.length },
+    }));
+    editorView.focus();
+  }, [editorView]);
+
+  const handleUploadFile = useCallback(async (file: File): Promise<SessionImageAsset | null> => {
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      toast.error(validationError);
+      return null;
+    }
+
+    const asset = await createSessionImageAsset(file);
+    setSessionImages((current) => [asset, ...current]);
+    insertImageMarkdown(asset.id, asset.name);
+    toast.success(`Uploaded ${file.name}`);
+    return asset;
+  }, [insertImageMarkdown]);
+
+  const handleDeleteImage = useCallback((imageId: string) => {
+    setSessionImages((current) => {
+      const match = current.find((img) => img.id === imageId);
+      if (match && match.objectUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(match.objectUrl);
+      }
+      return current.filter((img) => img.id !== imageId);
+    });
+    toast.success('Image removed from session');
+  }, []);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(IMAGE_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return;
+      setSessionImages(restoreImagesFromStorage(parsed));
+    } catch (error) {
+      console.warn('Failed to restore stored images:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const serialized = serializeImagesForStorage(sessionImages);
+      window.localStorage.setItem(IMAGE_STORAGE_KEY, JSON.stringify(serialized));
+    } catch (error) {
+      console.warn('Failed to persist images:', error);
+    }
+  }, [sessionImages]);
+
+  useEffect(() => {
+    sessionImagesRef.current = sessionImages;
+  }, [sessionImages]);
+
+  useEffect(() => {
+    return () => {
+      sessionImagesRef.current.forEach((img) => {
+        if (img.objectUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(img.objectUrl);
+        }
+      });
+    };
+  }, []);
+
   const handleExport = () => {
     // OLD BUGGY WAY: reading innerHTML from the DOM (which is already processed) causing double-processing
     // NEW FIX: use the raw sanitized HTML from the worker
-    printPdf(htmlOutput, orientation, styleSettings, documentTitle);
+    printPdf(htmlOutput, orientation, styleSettings, documentTitle, sessionImageMap);
   };
 
   const handleReset = () => {
@@ -281,6 +378,15 @@ const App: React.FC = () => {
           htmlContent={htmlOutput}
           initialOrientation={orientation}
           styleSettings={styleSettings}
+          imageSources={sessionImageMap}
+        />
+        <ImageManagerModal
+          isOpen={isImageManagerOpen}
+          onClose={() => setIsImageManagerOpen(false)}
+          images={sessionImages}
+          onUploadFile={handleUploadFile}
+          onInsertImage={insertImageMarkdown}
+          onDeleteImage={handleDeleteImage}
         />
 
         {/* Header */}
@@ -435,7 +541,8 @@ const App: React.FC = () => {
           )}>
             {/* Toolbar - Only visible in editor/split mode */}
             <Toolbar 
-              editorView={editorView} 
+              editorView={editorView}
+              onOpenImageManager={() => setIsImageManagerOpen(true)}
             />
 
             <div className="flex-1 overflow-hidden">
@@ -460,6 +567,7 @@ const App: React.FC = () => {
                 styleSettings={styleSettings}
                 showPageBreakLines={showPageBreakLines}
                 orientation={orientation}
+                imageSources={sessionImageMap}
             />
           </div>
 

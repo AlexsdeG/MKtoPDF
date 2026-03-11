@@ -31,6 +31,9 @@ const ALLOWED_ATTR = [
   'face',  // for <font face>
 ];
 
+// Keep DOMPurify's safe defaults while explicitly allowing mkimg: internal URLs.
+const ALLOWED_URI_REGEXP = /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix|mkimg):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i;
+
 // Initialize mermaid
 mermaid.initialize({
   startOnLoad: false,
@@ -86,6 +89,7 @@ export function sanitizeHtml(rawHtml: string): string {
   let clean = DOMPurify.sanitize(protectedHtml, {
     ADD_TAGS: KATEX_TAGS,
     ADD_ATTR: ALLOWED_ATTR,
+    ALLOWED_URI_REGEXP,
   });
 
   // 3. Restore protected blocks by replacing the <div> placeholders

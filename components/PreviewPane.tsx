@@ -2,12 +2,14 @@ import React, { forwardRef, useEffect, useRef, useCallback, useState } from 'rea
 import { StyleSettings, stylesToCSSVars, DEFAULT_STYLE_SETTINGS } from '../lib/styleSettings';
 import clsx from 'clsx';
 import { sanitizeHtml, postProcessHtml } from '../lib/markdownEngine';
+import { replaceInternalImageSources } from '../lib/sessionImages';
 
 interface PreviewPaneProps {
   htmlContent: string;
   styleSettings?: StyleSettings;
   showPageBreakLines?: boolean;
   orientation?: 'portrait' | 'landscape';
+  imageSources?: Record<string, string>;
 }
 
 // A4 dimensions in mm, minus margins (20mm each side)
@@ -24,6 +26,7 @@ export const PreviewPane = forwardRef<HTMLDivElement, PreviewPaneProps>(({
   styleSettings,
   showPageBreakLines = false,
   orientation = 'portrait',
+  imageSources = {},
 }, ref) => {
   const currentSettings = styleSettings || DEFAULT_STYLE_SETTINGS;
   const cssVars = stylesToCSSVars(currentSettings);
@@ -38,13 +41,15 @@ export const PreviewPane = forwardRef<HTMLDivElement, PreviewPaneProps>(({
 
       // Run post-processing pipeline (callouts, mermaid, code labels, math)
       postProcessHtml(contentRef.current, currentSettings).then(() => {
+        replaceInternalImageSources(contentRef.current!, imageSources);
+
         // After processing, calculate page break lines if needed
         if (showPageBreakLines && contentRef.current) {
           calculatePageBreaks();
         }
       });
     }
-  }, [htmlContent, currentSettings]);
+  }, [htmlContent, currentSettings, showPageBreakLines, imageSources]);
 
   // Recalculate page breaks when toggle or orientation changes
   useEffect(() => {

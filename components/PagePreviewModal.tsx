@@ -3,6 +3,7 @@ import { X, FileText, Check } from 'lucide-react';
 import { StyleSettings, stylesToCSSVars, DEFAULT_STYLE_SETTINGS } from '../lib/styleSettings';
 import { postProcessHtml } from '../lib/markdownEngine';
 import { Previewer } from 'pagedjs';
+import { replaceInternalImageSources } from '../lib/sessionImages';
 
 interface PagePreviewModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface PagePreviewModalProps {
   htmlContent: string;
   initialOrientation: 'portrait' | 'landscape';
   styleSettings?: StyleSettings;
+  imageSources?: Record<string, string>;
 }
 
 export const PagePreviewModal: React.FC<PagePreviewModalProps> = ({
@@ -18,6 +20,7 @@ export const PagePreviewModal: React.FC<PagePreviewModalProps> = ({
   htmlContent,
   initialOrientation,
   styleSettings,
+  imageSources = {},
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const previewerRef = useRef<Previewer | null>(null);
@@ -227,6 +230,7 @@ export const PagePreviewModal: React.FC<PagePreviewModalProps> = ({
     // Run post-processing (callouts, mermaid, code labels, math) before PagedJS
     try {
       await postProcessHtml(contentWrapper, settings);
+      replaceInternalImageSources(contentWrapper, imageSources);
     } catch (err) {
       console.warn('Post-processing error in preview:', err);
     }
