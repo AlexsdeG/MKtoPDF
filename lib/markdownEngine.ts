@@ -1,6 +1,7 @@
 import DOMPurify from 'dompurify';
 import mermaid from 'mermaid';
 import { CALLOUT_TYPES, resolveCalloutType, StyleSettings, DEFAULT_STYLE_SETTINGS } from './styleSettings';
+import { preprocessMarkdown as preprocessMarkdownCore } from './markdownPreprocess';
 
 // KaTeX-specific tags and attributes that DOMPurify must allow
 const KATEX_TAGS = [
@@ -50,10 +51,7 @@ mermaid.initialize({
  * @returns Preprocessed markdown
  */
 export function preprocessMarkdown(markdown: string): string {
-  // Convert ==text== to <mark>text</mark>
-  // Avoid matching inside code blocks by being careful with context
-  // This regex handles inline ==text== (not across newlines for safety)
-  return markdown.replace(/==((?:[^=]|=[^=])+?)==/g, '<mark>$1</mark>');
+  return preprocessMarkdownCore(markdown);
 }
 
 /**
