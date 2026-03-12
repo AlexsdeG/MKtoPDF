@@ -189,7 +189,13 @@ export async function inlineImageSourcesForExport(
     const internalId = getInternalImageIdFromElement(img);
     const src = internalId ? imageSourceMap[internalId] : rawSrc;
 
-    if (!src || src.startsWith('data:')) continue;
+    if (!src) continue;
+
+    // Already a data URL — write it back so mkimg:// src is replaced before printing.
+    if (src.startsWith('data:')) {
+      img.setAttribute('src', src);
+      continue;
+    }
 
     if (internalId && !imageSourceMap[internalId]) {
       continue;
