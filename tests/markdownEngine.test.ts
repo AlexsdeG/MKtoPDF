@@ -4,6 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { sanitizeHtml } from '../lib/markdownEngine';
 import { parseMarkdown } from '../lib/markdownParser';
+import { transformCallouts } from '../lib/markdownEngine';
 
 // Helper to compose parser and sanitizer for tests
 async function processMarkdown(content: string): Promise<string> {
@@ -72,5 +73,21 @@ describe('Markdown Engine', () => {
     const input = '![alt](mkimg://internal-123)';
     const output = await processMarkdown(input);
     expect(output).toContain('src="mkimg://internal-123"');
+  });
+
+  it('should apply type-specific callout colors', () => {
+    const container = document.createElement('div');
+    container.innerHTML = '<blockquote><p>[!success] Done</p></blockquote><blockquote><p>[!error] Boom</p></blockquote>';
+
+    transformCallouts(container);
+
+    const callouts = container.querySelectorAll('.callout');
+    expect(callouts.length).toBe(2);
+
+    const successTitle = callouts[0].querySelector('.callout-title') as HTMLElement;
+    const errorTitle = callouts[1].querySelector('.callout-title') as HTMLElement;
+
+    expect(successTitle.style.color).toBe('rgb(0, 200, 83)');
+    expect(errorTitle.style.color).toBe('rgb(255, 23, 68)');
   });
 });

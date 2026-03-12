@@ -102,6 +102,20 @@ import renderMathInElement from 'katex/contrib/auto-render';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 
+function hexToRgba(hex: string, alpha: number): string | null {
+  const cleaned = hex.trim().replace('#', '');
+  if (!/^[\da-fA-F]{3}$|^[\da-fA-F]{6}$/.test(cleaned)) return null;
+
+  const full = cleaned.length === 3
+    ? cleaned.split('').map((c) => `${c}${c}`).join('')
+    : cleaned;
+
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 /**
  * Renders KaTeX math expressions in a given DOM container.
  * Looks for elements with class `math-inline` and `math-display` produced by remark-math + remark-rehype.
@@ -199,11 +213,17 @@ export function transformCallouts(container: HTMLElement, settings?: StyleSettin
     callout.className = 'callout';
     callout.setAttribute('data-callout', resolvedType);
     callout.style.setProperty('--callout-color', color);
+    callout.style.borderColor = hexToRgba(color, 0.3) || color;
+    callout.style.borderLeftColor = color;
+    callout.style.backgroundColor = hexToRgba(color, 0.05) || '#f8fafc';
 
     // Title — use the extracted title or the type name capitalized
     const displayTitle = titleText || resolvedType.charAt(0).toUpperCase() + resolvedType.slice(1);
     const titleDiv = document.createElement('div');
     titleDiv.className = 'callout-title';
+    titleDiv.style.color = color;
+    titleDiv.style.backgroundColor = hexToRgba(color, 0.1) || '#eef2ff';
+    titleDiv.style.borderBottomColor = hexToRgba(color, 0.15) || color;
     titleDiv.innerHTML = `
       <span class="callout-icon">${typeDef.icon}</span>
       <span class="callout-title-text">${displayTitle}</span>
