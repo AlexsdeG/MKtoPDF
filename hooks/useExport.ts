@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
-import { StyleSettings } from '../lib/styleSettings';
+import { StyleSettings, stylesToCSSVars } from '../lib/styleSettings';
+import { buildPageRules } from '../lib/headerFooter';
 import { inlineImageSourcesForExport } from '../lib/sessionImages';
 
 export const useExport = () => {
@@ -15,20 +16,31 @@ export const useExport = () => {
   ) => {
     setIsExporting(true);
     const toastId = toast.loading('Preparing PDF...');
+    let hiddenRenderTarget: HTMLDivElement | null = null;
+    let iframe: HTMLIFrameElement | null = null;
+    let exportPagedStyleElements: HTMLStyleElement[] = [];
+
+    const cleanup = () => {
+      for (const styleEl of exportPagedStyleElements) {
+        if (styleEl.parentNode) {
+          styleEl.parentNode.removeChild(styleEl);
+        }
+      }
+
+      if (iframe?.parentNode) {
+        iframe.parentNode.removeChild(iframe);
+      }
+
+      if (hiddenRenderTarget?.parentNode) {
+        hiddenRenderTarget.parentNode.removeChild(hiddenRenderTarget);
+      }
+    };
 
     try {
-
-      // Direct interpolation for header/footer to avoid PagedJS parsing issues with var()
-      const headerLeft = settings.headerLeft ? `"${settings.headerLeft.replace(/"/g, '\\"')}"` : '""';
-      const headerCenter = settings.headerCenter ? `"${settings.headerCenter.replace(/"/g, '\\"')}"` : '""';
-      const headerRight = settings.headerRight ? `"${settings.headerRight.replace(/"/g, '\\"')}"` : '""';
-      const footerLeft = settings.footerLeft ? `"${settings.footerLeft.replace(/"/g, '\\"')}"` : '""';
-      const footerCenter = settings.footerCenter ? `"${settings.footerCenter.replace(/"/g, '\\"')}"` : '""';
-      const footerRight = settings.footerRight ? `"${settings.footerRight.replace(/"/g, '\\"')}"` : '""';
-
       // Run post-processing on the main thread before building the print document
       // Dynamic import to avoid loading mermaid/katex at module init (breaks tests)
       const { postProcessHtml } = await import('../lib/markdownEngine');
+      const { Previewer } = await import('pagedjs');
       const tempContainer = document.createElement('div');
       tempContainer.className = 'prose-preview';
       tempContainer.innerHTML = contentHtml;
@@ -41,6 +53,10 @@ export const useExport = () => {
       }
 
       const processedHtml = tempContainer.innerHTML;
+      const cssVars = stylesToCSSVars(settings);
+      const cssVarString = Object.entries(cssVars)
+        .map(([key, val]) => `${key}: ${val};`)
+        .join('\n');
 
       // Resolve CSS vars to literal values for the iframe (iframe can't inherit parent CSS vars)
       const FONT_FAMILIES: Record<string, string> = {
@@ -57,9 +73,34 @@ export const useExport = () => {
       const codeBg = settings.codeBgColor || '#f6f8fa';
       const pAlign = settings.paragraphAlign || 'left';
 
-      const printStyles = `
-        /* Base Styles — all resolved to literal values */
-        body { margin: 0; padding: 20mm; background: white; }
+      const pagedStyles = `
+        ${buildPageRules(settings, orientation)}
+
+        .pagedjs_page {
+          background-color: white;
+          box-shadow: none;
+          margin-bottom: 0;
+          flex: none;
+        }
+
+        .pagedjs_pages {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: 0;
+          width: 100%;
+        }
+
+        .pagedjs_page {
+          ${cssVarString}
+        }
+
+        .pagedjs_page .prose-preview {
+          ${cssVarString}
+          word-wrap: break-word;
+        }
+
+        .pagedjs_margin-content { font-size: 9pt; }
 
         .prose-preview {
           font-family: ${fontFamily};
@@ -69,64 +110,9 @@ export const useExport = () => {
           background-color: #ffffff;
           max-width: 900px;
           margin: 0 auto;
-          white-space: pre-wrap;
           word-wrap: break-word;
         }
 
-        /* Print Page Setup */
-        @page {
-          size: A4 ${orientation};
-          margin: 20mm; /* Browser print margin */
-        }
-
-        @media print {
-          body { 
-            margin: 0; 
-            padding: 0; 
-            background: white; 
-          }
-          
-          .prose-preview {
-            max-width: none !important;
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            
-            /* Fix extra newlines handling */
-            white-space: normal !important; 
-            
-            /* Increase font size for print specifically */
-            font-size: 12pt !important;
-            line-height: 1.5 !important;
-          }
-          
-          /* Tighten spacing for print */
-          .prose-preview p, 
-          .prose-preview ul, 
-          .prose-preview ol,
-          .prose-preview li {
-            margin-bottom: 0.5em !important;
-          }
-          
-          /* Prevent awkward breaks */
-          .prose-preview pre, 
-          .prose-preview blockquote,
-          .prose-preview table,
-          .callout { 
-            page-break-inside: avoid; 
-          }
-          
-          /* Ensure headings stick to content */
-          .prose-preview h1, 
-          .prose-preview h2, 
-          .prose-preview h3,
-          .prose-preview h4 { 
-            page-break-after: avoid;
-            margin-top: 1em !important; 
-          }
-        }
-
-        /* Typography — exact match with index.html */
         .prose-preview h1 {
           font-size: 2em; font-weight: 800;
           margin-bottom: 0.5em; margin-top: 1.2em;
@@ -227,8 +213,72 @@ export const useExport = () => {
         h1, h2, h3 { page-break-after: avoid; }
       `;
 
+      const printFrameStyles = `
+        @page { size: A4 ${orientation}; margin: 0; }
+
+        html, body {
+          margin: 0;
+          padding: 0;
+          background: white;
+        }
+
+        .print-root {
+          width: 100%;
+          background: white;
+        }
+
+        .pagedjs_pages {
+          display: block !important;
+          padding: 0 !important;
+        }
+
+        .pagedjs_page {
+          margin: 0 auto !important;
+          box-shadow: none !important;
+        }
+      `;
+
+      hiddenRenderTarget = document.createElement('div');
+      hiddenRenderTarget.setAttribute('aria-hidden', 'true');
+      hiddenRenderTarget.style.position = 'fixed';
+      hiddenRenderTarget.style.left = '-10000px';
+      hiddenRenderTarget.style.top = '0';
+      hiddenRenderTarget.style.width = orientation === 'portrait' ? '210mm' : '297mm';
+      hiddenRenderTarget.style.pointerEvents = 'none';
+      hiddenRenderTarget.style.opacity = '0';
+      document.body.appendChild(hiddenRenderTarget);
+
+      const preExistingPagedStyles = new Set(
+        Array.from(document.querySelectorAll('style[data-pagedjs-inserted-styles]'))
+      );
+
+      const stylesBlob = new Blob([pagedStyles], { type: 'text/css' });
+      const stylesUrl = URL.createObjectURL(stylesBlob);
+
+      try {
+        const contentWrapper = document.createElement('div');
+        contentWrapper.className = 'prose-preview';
+        contentWrapper.innerHTML = processedHtml;
+        contentWrapper.style.cssText = Object.entries(cssVars)
+          .map(([key, val]) => `${key}: ${val}`)
+          .join('; ');
+
+        const previewer = new Previewer();
+        await previewer.preview(contentWrapper, [stylesUrl], hiddenRenderTarget);
+
+        exportPagedStyleElements = Array.from(document.querySelectorAll('style[data-pagedjs-inserted-styles]'))
+          .filter((styleEl): styleEl is HTMLStyleElement => !preExistingPagedStyles.has(styleEl));
+      } finally {
+        URL.revokeObjectURL(stylesUrl);
+      }
+
+      const renderedPages = hiddenRenderTarget.innerHTML;
+      if (!renderedPages.trim()) {
+        throw new Error('Paged export did not generate any printable pages');
+      }
+
       // Create iframe for printing
-      const iframe = document.createElement('iframe');
+      iframe = document.createElement('iframe');
       iframe.style.position = 'absolute';
       iframe.style.width = '0';
       iframe.style.height = '0';
@@ -240,12 +290,14 @@ export const useExport = () => {
       const doc = iframeWindow?.document;
       if (!doc || !iframeWindow) throw new Error('Could not access iframe document');
 
-      // Collect styles from main document to ensure plugins (KaTeX, Mermaid, etc.) work
-      const existingStyles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+      // Exclude stale pagedjs-generated styles from previous runs; we add only current export styles below.
+      const existingStyles = Array.from(document.querySelectorAll('style:not([data-pagedjs-inserted-styles]), link[rel="stylesheet"]'))
         .map(el => el.outerHTML)
         .join('');
+      const currentPagedStyles = exportPagedStyleElements
+        .map((el) => `<style data-pagedjs-inserted-styles>${el.textContent ?? ''}</style>`)
+        .join('');
 
-      // Write content — simple approach with @page rules for print
       doc.open();
       doc.write(`<!DOCTYPE html>
 <html>
@@ -253,11 +305,13 @@ export const useExport = () => {
   <title>${title}</title>
   <meta charset="utf-8">
   ${existingStyles}
-  <style>${printStyles}</style>
+  ${currentPagedStyles}
+  <style>${pagedStyles}</style>
+  <style>${printFrameStyles}</style>
 </head>
 <body>
-  <div class="prose-preview">
-    ${processedHtml}
+  <div class="print-root">
+    ${renderedPages}
   </div>
 </body>
 </html>`);
@@ -292,7 +346,7 @@ export const useExport = () => {
 
       // Cleanup
       setTimeout(() => {
-        document.body.removeChild(iframe);
+        cleanup();
       }, 3000);
 
       setIsExporting(false);
@@ -300,6 +354,7 @@ export const useExport = () => {
       toast.success('Export completed');
 
     } catch (error) {
+      cleanup();
       console.error('Export error:', error);
       toast.error('Failed to export PDF');
       setIsExporting(false);

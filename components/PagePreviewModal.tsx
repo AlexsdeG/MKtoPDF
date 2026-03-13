@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, FileText, Check } from 'lucide-react';
 import { StyleSettings, stylesToCSSVars, DEFAULT_STYLE_SETTINGS } from '../lib/styleSettings';
+import { buildPageRules } from '../lib/headerFooter';
 import { postProcessHtml } from '../lib/markdownEngine';
 import { Previewer } from 'pagedjs';
 import { replaceInternalImageSources } from '../lib/sessionImages';
@@ -64,27 +65,8 @@ export const PagePreviewModal: React.FC<PagePreviewModalProps> = ({
       .map(([key, val]) => `${key}: ${val};`)
       .join('\n');
 
-    // Direct interpolation for headers/footers to avoid PagedJS parsing issues
-    const headerLeft = settings.headerLeft ? `"${settings.headerLeft.replace(/"/g, '\\"')}"` : '""';
-    const headerCenter = settings.headerCenter ? `"${settings.headerCenter.replace(/"/g, '\\"')}"` : '""';
-    const headerRight = settings.headerRight ? `"${settings.headerRight.replace(/"/g, '\\"')}"` : '""';
-    const footerLeft = settings.footerLeft ? `"${settings.footerLeft.replace(/"/g, '\\"')}"` : '""';
-    const footerCenter = settings.footerCenter ? `"${settings.footerCenter.replace(/"/g, '\\"')}"` : '""';
-    const footerRight = settings.footerRight ? `"${settings.footerRight.replace(/"/g, '\\"')}"` : '""';
-
     const pageRules = `
-      @page {
-        size: A4 ${orientation};
-        margin: 20mm;
-        
-        @top-left { content: ${headerLeft}; font-family: var(--md-font-family); font-size: 9pt; color: #666; }
-        @top-center { content: ${headerCenter}; font-family: var(--md-font-family); font-size: 9pt; color: #666; }
-        @top-right { content: ${headerRight}; font-family: var(--md-font-family); font-size: 9pt; color: #666; }
-        
-        @bottom-left { content: ${footerLeft}; font-family: var(--md-font-family); font-size: 9pt; color: #666; }
-        @bottom-center { content: ${footerCenter}; font-family: var(--md-font-family); font-size: 9pt; color: #666; }
-        @bottom-right { content: ${footerRight}; font-family: var(--md-font-family); font-size: 9pt; color: #666; }
-      }
+      ${buildPageRules(settings, orientation)}
 
       /* Essential PagedJS Styles */
       .pagedjs_page {
@@ -110,7 +92,6 @@ export const PagePreviewModal: React.FC<PagePreviewModalProps> = ({
       /* Ensure content uses variables and whitespace is preserved */
       .pagedjs_page .prose-preview {
          ${cssVarString}
-         white-space: pre-wrap;
          word-wrap: break-word;
       }
       
@@ -225,7 +206,6 @@ export const PagePreviewModal: React.FC<PagePreviewModalProps> = ({
     contentWrapper.style.cssText = Object.entries(cssVars)
       .map(([key, val]) => `${key}: ${val}`)
       .join('; ');
-    contentWrapper.style.whiteSpace = 'pre-wrap';
 
     // Run post-processing (callouts, mermaid, code labels, math) before PagedJS
     try {

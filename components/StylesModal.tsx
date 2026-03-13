@@ -408,7 +408,7 @@ export const StylesModal: React.FC<StylesModalProps> = ({
                     {activeTab === 'export' && (
                       <div className="space-y-6">
                         <div className="bg-blue-50 p-3 rounded-lg text-sm text-blue-700 border border-blue-100">
-                           Use <code>counter(page)</code> to display the current page number.
+                                                     Use <code>{'{date}'}</code>, <code>{'{page}'}</code>, or <code>{'{pages}'}</code>. Legacy <code>counter(page)</code> and <code>counter(pages)</code> also work.
                         </div>
 
                         <div>
@@ -430,7 +430,7 @@ export const StylesModal: React.FC<StylesModalProps> = ({
                                     label="Right"
                                     value={localSettings.headerRight}
                                     onChange={(v) => update({ headerRight: v })}
-                                    placeholder="Date"
+                                    placeholder="{date}"
                                 />
                             </div>
                         </div>
@@ -448,13 +448,13 @@ export const StylesModal: React.FC<StylesModalProps> = ({
                                     label="Center"
                                     value={localSettings.footerCenter}
                                     onChange={(v) => update({ footerCenter: v })}
-                                    placeholder="- Page -"
+                                    placeholder="Page {page} of {pages}"
                                 />
                                 <TextInput
                                     label="Right"
                                     value={localSettings.footerRight}
                                     onChange={(v) => update({ footerRight: v })}
-                                    placeholder='counter(page)'
+                                    placeholder="{page}"
                                 />
                             </div>
                         </div>
