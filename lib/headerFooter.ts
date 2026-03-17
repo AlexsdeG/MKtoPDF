@@ -2,6 +2,11 @@ import { StyleSettings } from './styleSettings';
 
 export const HEADER_FOOTER_COLOR = '#64748b';
 
+interface PageRuleOptions {
+  marginMm?: number;
+  marginFontSizePt?: number;
+}
+
 const COMMAND_REGEX = /(counter\(\s*(page|pages)\s*\)|\{\{\s*(date|currentDate|page|pages|currentPage|totalPages|maxPages)\s*\}\}|\{\s*(date|currentDate|page|pages|currentPage|totalPages|maxPages)\s*\})/gi;
 
 type ContentToken =
@@ -94,10 +99,24 @@ export function formatMarginContent(input: string): string {
     .join(' ');
 }
 
+export function hasCustomHeaderFooter(settings: StyleSettings): boolean {
+  return [
+    settings.headerLeft,
+    settings.headerCenter,
+    settings.headerRight,
+    settings.footerLeft,
+    settings.footerCenter,
+    settings.footerRight,
+  ].some((value) => value.trim().length > 0);
+}
+
 export function buildPageRules(
   settings: StyleSettings,
-  orientation: 'portrait' | 'landscape'
+  orientation: 'portrait' | 'landscape',
+  options: PageRuleOptions = {}
 ): string {
+  const marginMm = options.marginMm ?? 20;
+  const marginFontSizePt = options.marginFontSizePt ?? 9;
   const headerLeft = formatMarginContent(settings.headerLeft);
   const headerCenter = formatMarginContent(settings.headerCenter);
   const headerRight = formatMarginContent(settings.headerRight);
@@ -108,15 +127,15 @@ export function buildPageRules(
   return `
     @page {
       size: A4 ${orientation};
-      margin: 20mm;
+      margin: ${marginMm}mm;
 
-      @top-left { content: ${headerLeft}; font-family: var(--md-font-family); font-size: 9pt; color: ${HEADER_FOOTER_COLOR}; }
-      @top-center { content: ${headerCenter}; font-family: var(--md-font-family); font-size: 9pt; color: ${HEADER_FOOTER_COLOR}; }
-      @top-right { content: ${headerRight}; font-family: var(--md-font-family); font-size: 9pt; color: ${HEADER_FOOTER_COLOR}; }
+      @top-left { content: ${headerLeft}; font-family: var(--md-font-family); font-size: ${marginFontSizePt}pt; color: ${HEADER_FOOTER_COLOR}; }
+      @top-center { content: ${headerCenter}; font-family: var(--md-font-family); font-size: ${marginFontSizePt}pt; color: ${HEADER_FOOTER_COLOR}; }
+      @top-right { content: ${headerRight}; font-family: var(--md-font-family); font-size: ${marginFontSizePt}pt; color: ${HEADER_FOOTER_COLOR}; }
 
-      @bottom-left { content: ${footerLeft}; font-family: var(--md-font-family); font-size: 9pt; color: ${HEADER_FOOTER_COLOR}; }
-      @bottom-center { content: ${footerCenter}; font-family: var(--md-font-family); font-size: 9pt; color: ${HEADER_FOOTER_COLOR}; }
-      @bottom-right { content: ${footerRight}; font-family: var(--md-font-family); font-size: 9pt; color: ${HEADER_FOOTER_COLOR}; }
+      @bottom-left { content: ${footerLeft}; font-family: var(--md-font-family); font-size: ${marginFontSizePt}pt; color: ${HEADER_FOOTER_COLOR}; }
+      @bottom-center { content: ${footerCenter}; font-family: var(--md-font-family); font-size: ${marginFontSizePt}pt; color: ${HEADER_FOOTER_COLOR}; }
+      @bottom-right { content: ${footerRight}; font-family: var(--md-font-family); font-size: ${marginFontSizePt}pt; color: ${HEADER_FOOTER_COLOR}; }
     }
   `;
 }

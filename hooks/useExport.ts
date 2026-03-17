@@ -1,8 +1,80 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { StyleSettings, stylesToCSSVars } from '../lib/styleSettings';
-import { buildPageRules } from '../lib/headerFooter';
+import { buildPageRules, hasCustomHeaderFooter } from '../lib/headerFooter';
 import { inlineImageSourcesForExport } from '../lib/sessionImages';
+
+const A4_DIMENSIONS_MM = {
+  portrait: { width: 210, height: 297 },
+  landscape: { width: 297, height: 210 },
+} as const;
+
+function getExportPageGeometry(orientation: 'portrait' | 'landscape', hasHeaderOrFooter: boolean) {
+  // Keep default spacing when no margin boxes are used.
+  const marginMm = hasHeaderOrFooter ? 18 : 20;
+  const page = A4_DIMENSIONS_MM[orientation];
+
+  return {
+    marginMm,
+    pageWidthMm: page.width,
+    pageHeightMm: page.height,
+    contentWidthMm: page.width - marginMm * 2,
+    contentHeightMm: page.height - marginMm * 2,
+  };
+}
+
+async function runPagedPreviewWithoutResizeObserver<T>(run: () => Promise<T>): Promise<T> {
+  const originalResizeObserver = (globalThis as any).ResizeObserver;
+
+  try {
+    (globalThis as any).ResizeObserver = undefined;
+    return await run();
+  } finally {
+    (globalThis as any).ResizeObserver = originalResizeObserver;
+  }
+}
+
+async function waitForNextFrame(targetWindow: Window): Promise<void> {
+  await new Promise<void>((resolve) => targetWindow.requestAnimationFrame(() => resolve()));
+}
+
+async function waitForPrintDocumentReady(targetWindow: Window, doc: Document): Promise<void> {
+  if ('fonts' in doc && (doc as any).fonts?.ready) {
+    try {
+      await (doc as any).fonts.ready;
+    } catch {
+      // Ignore font readiness failures and continue with layout flush.
+    }
+  }
+
+  await waitForNextFrame(targetWindow);
+  await waitForNextFrame(targetWindow);
+}
+
+function getPageDiagnostics(root: ParentNode) {
+  const pageNodes = Array.from(root.querySelectorAll('.pagedjs_page'));
+  const diagnostics = pageNodes.map((pageNode, index) => {
+    const pageText = pageNode.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+    const contentNode = pageNode.querySelector('.pagedjs_page_content');
+    const contentText = contentNode?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+    return {
+      page: index + 1,
+      textLength: pageText.length,
+      contentTextLength: contentText.length,
+      childCount: pageNode.childElementCount,
+      isBlank: pageText.length === 0,
+      contentBlank: contentText.length === 0,
+    };
+  });
+
+  return {
+    pageCount: pageNodes.length,
+    blankPages: diagnostics.filter((item) => item.isBlank).map((item) => item.page),
+    contentBlankPages: diagnostics.filter((item) => item.contentBlank).map((item) => item.page),
+    diagnostics,
+  };
+}
 
 export const useExport = () => {
   const [isExporting, setIsExporting] = useState(false);
@@ -18,9 +90,52 @@ export const useExport = () => {
     const toastId = toast.loading('Preparing PDF...');
     let hiddenRenderTarget: HTMLDivElement | null = null;
     let iframe: HTMLIFrameElement | null = null;
+    let exportPreviewer: any = null;
     let exportPagedStyleElements: HTMLStyleElement[] = [];
+    const exportDebugEnabled = (() => {
+      try {
+        return window.localStorage.getItem('MKTOPDF_EXPORT_DEBUG') === '1';
+      } catch {
+        return false;
+      }
+    })();
+
+    const debugLog = (message: string, payload?: unknown) => {
+      if (!exportDebugEnabled) {
+        return;
+      }
+
+      if (typeof payload === 'undefined') {
+        console.debug(`[MKtoPDF export] ${message}`);
+        return;
+      }
+
+      console.debug(`[MKtoPDF export] ${message}`, payload);
+    };
+
+    const destroyExportPreviewer = () => {
+      if (!exportPreviewer) {
+        return;
+      }
+
+      try {
+        exportPreviewer.chunker?.destroy?.();
+      } catch (err) {
+        debugLog('chunker destroy warning', err);
+      }
+
+      try {
+        exportPreviewer.polisher?.destroy?.();
+      } catch (err) {
+        debugLog('polisher destroy warning', err);
+      }
+
+      exportPreviewer = null;
+    };
 
     const cleanup = () => {
+      destroyExportPreviewer();
+
       for (const styleEl of exportPagedStyleElements) {
         if (styleEl.parentNode) {
           styleEl.parentNode.removeChild(styleEl);
@@ -72,9 +187,26 @@ export const useExport = () => {
       const accentColor = settings.accentColor || '#4f46e5';
       const codeBg = settings.codeBgColor || '#f6f8fa';
       const pAlign = settings.paragraphAlign || 'left';
+      const hasHeaderOrFooter = hasCustomHeaderFooter(settings);
+      const geometry = getExportPageGeometry(orientation, hasHeaderOrFooter);
+      debugLog('export geometry', {
+        orientation,
+        hasHeaderOrFooter,
+        marginMm: geometry.marginMm,
+        pageWidthMm: geometry.pageWidthMm,
+        pageHeightMm: geometry.pageHeightMm,
+        contentWidthMm: geometry.contentWidthMm,
+        contentHeightMm: geometry.contentHeightMm,
+        maxContentWidthPx: settings.maxContentWidth,
+      });
 
       const pagedStyles = `
-        ${buildPageRules(settings, orientation)}
+        ${buildPageRules(settings, orientation, { marginMm: geometry.marginMm })}
+
+        :root {
+          --md-export-content-width: ${geometry.contentWidthMm}mm;
+          --md-export-content-height: ${geometry.contentHeightMm}mm;
+        }
 
         .pagedjs_page {
           background-color: white;
@@ -97,6 +229,9 @@ export const useExport = () => {
 
         .pagedjs_page .prose-preview {
           ${cssVarString}
+          width: 100%;
+          max-width: 100%;
+          box-sizing: border-box;
           word-wrap: break-word;
         }
 
@@ -108,7 +243,9 @@ export const useExport = () => {
           line-height: ${lineHeight};
           color: ${textColor};
           background-color: #ffffff;
-          max-width: 900px;
+          width: 100%;
+          max-width: min(var(--md-max-width, 900px), var(--md-export-content-width));
+          box-sizing: border-box;
           margin: 0 auto;
           word-wrap: break-word;
         }
@@ -214,8 +351,6 @@ export const useExport = () => {
       `;
 
       const printFrameStyles = `
-        @page { size: A4 ${orientation}; margin: 0; }
-
         html, body {
           margin: 0;
           padding: 0;
@@ -223,18 +358,29 @@ export const useExport = () => {
         }
 
         .print-root {
-          width: 100%;
+          width: ${geometry.pageWidthMm}mm;
+          min-width: ${geometry.pageWidthMm}mm;
+          margin: 0 auto;
           background: white;
         }
 
         .pagedjs_pages {
           display: block !important;
           padding: 0 !important;
+          width: ${geometry.pageWidthMm}mm !important;
+          margin: 0 auto !important;
         }
 
         .pagedjs_page {
           margin: 0 auto !important;
           box-shadow: none !important;
+          break-after: page;
+          page-break-after: always;
+        }
+
+        .pagedjs_page:last-child {
+          break-after: auto;
+          page-break-after: auto;
         }
       `;
 
@@ -243,7 +389,8 @@ export const useExport = () => {
       hiddenRenderTarget.style.position = 'fixed';
       hiddenRenderTarget.style.left = '-10000px';
       hiddenRenderTarget.style.top = '0';
-      hiddenRenderTarget.style.width = orientation === 'portrait' ? '210mm' : '297mm';
+      hiddenRenderTarget.style.width = `${geometry.contentWidthMm}mm`;
+      hiddenRenderTarget.style.minHeight = `${geometry.contentHeightMm}mm`;
       hiddenRenderTarget.style.pointerEvents = 'none';
       hiddenRenderTarget.style.opacity = '0';
       document.body.appendChild(hiddenRenderTarget);
@@ -262,9 +409,19 @@ export const useExport = () => {
         contentWrapper.style.cssText = Object.entries(cssVars)
           .map(([key, val]) => `${key}: ${val}`)
           .join('; ');
+        contentWrapper.style.width = '100%';
+        contentWrapper.style.maxWidth = `${geometry.contentWidthMm}mm`;
 
         const previewer = new Previewer();
-        await previewer.preview(contentWrapper, [stylesUrl], hiddenRenderTarget);
+        exportPreviewer = previewer;
+        const flow = await runPagedPreviewWithoutResizeObserver(() =>
+          previewer.preview(contentWrapper, [stylesUrl], hiddenRenderTarget)
+        );
+        debugLog('paged flow summary', {
+          pages: flow?.pages?.length,
+          total: flow?.total,
+          performanceMs: flow?.performance,
+        });
 
         exportPagedStyleElements = Array.from(document.querySelectorAll('style[data-pagedjs-inserted-styles]'))
           .filter((styleEl): styleEl is HTMLStyleElement => !preExistingPagedStyles.has(styleEl));
@@ -277,13 +434,23 @@ export const useExport = () => {
         throw new Error('Paged export did not generate any printable pages');
       }
 
+      if (exportDebugEnabled) {
+        const debugContainer = document.createElement('div');
+        debugContainer.innerHTML = renderedPages;
+        debugLog('rendered page diagnostics', getPageDiagnostics(debugContainer));
+      }
+
       // Create iframe for printing
       iframe = document.createElement('iframe');
-      iframe.style.position = 'absolute';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
+      iframe.style.position = 'fixed';
+      iframe.style.width = '1280px';
+      iframe.style.height = '900px';
       iframe.style.border = 'none';
-      iframe.style.left = '-9999px';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.opacity = '0';
+      iframe.style.pointerEvents = 'none';
+      iframe.style.visibility = 'hidden';
       document.body.appendChild(iframe);
 
       const iframeWindow = iframe.contentWindow;
@@ -304,6 +471,7 @@ export const useExport = () => {
 <head>
   <title>${title}</title>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   ${existingStyles}
   ${currentPagedStyles}
   <style>${pagedStyles}</style>
@@ -319,9 +487,16 @@ export const useExport = () => {
 
       // Wait for content to render, then trigger print
       await new Promise<void>((resolve) => {
-        const onLoad = () => {
+        const onLoad = async () => {
+          await waitForPrintDocumentReady(iframeWindow, doc);
+
+          if (exportDebugEnabled) {
+            debugLog('iframe page diagnostics', getPageDiagnostics(doc));
+          }
+
           setTimeout(() => {
             try {
+              iframeWindow.focus();
               iframeWindow.print();
             } catch (e) {
               console.warn('Print failed:', e);

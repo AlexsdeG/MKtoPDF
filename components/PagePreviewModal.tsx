@@ -1,10 +1,36 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, FileText, Check } from 'lucide-react';
 import { StyleSettings, stylesToCSSVars, DEFAULT_STYLE_SETTINGS } from '../lib/styleSettings';
-import { buildPageRules } from '../lib/headerFooter';
+import { buildPageRules, hasCustomHeaderFooter } from '../lib/headerFooter';
 import { postProcessHtml } from '../lib/markdownEngine';
 import { Previewer } from 'pagedjs';
 import { replaceInternalImageSources } from '../lib/sessionImages';
+
+const A4_DIMENSIONS_MM = {
+  portrait: { width: 210, height: 297 },
+  landscape: { width: 297, height: 210 },
+} as const;
+
+function getPreviewPageGeometry(orientation: 'portrait' | 'landscape', hasHeaderOrFooter: boolean) {
+  const marginMm = hasHeaderOrFooter ? 18 : 20;
+  const page = A4_DIMENSIONS_MM[orientation];
+
+  return {
+    marginMm,
+    contentWidthMm: page.width - marginMm * 2,
+  };
+}
+
+async function runPagedPreviewWithoutResizeObserver<T>(run: () => Promise<T>): Promise<T> {
+  const originalResizeObserver = (globalThis as any).ResizeObserver;
+
+  try {
+    (globalThis as any).ResizeObserver = undefined;
+    return await run();
+  } finally {
+    (globalThis as any).ResizeObserver = originalResizeObserver;
+  }
+}
 
 interface PagePreviewModalProps {
   isOpen: boolean;
@@ -25,11 +51,55 @@ export const PagePreviewModal: React.FC<PagePreviewModalProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const previewerRef = useRef<Previewer | null>(null);
+  const renderRunIdRef = useRef(0);
   
   const [isRendering, setIsRendering] = useState(false);
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>(initialOrientation);
   
   const settings = styleSettings || DEFAULT_STYLE_SETTINGS;
+
+  const debugEnabled = (() => {
+    try {
+      return window.localStorage.getItem('MKTOPDF_EXPORT_DEBUG') === '1';
+    } catch {
+      return false;
+    }
+  })();
+
+  const debugLog = (message: string, payload?: unknown) => {
+    if (!debugEnabled) {
+      return;
+    }
+
+    if (typeof payload === 'undefined') {
+      console.debug(`[MKtoPDF preview] ${message}`);
+      return;
+    }
+
+    console.debug(`[MKtoPDF preview] ${message}`, payload);
+  };
+
+  const destroyPreviewer = (reason: string) => {
+    if (!previewerRef.current) {
+      return;
+    }
+
+    debugLog('destroying previewer', { reason });
+
+    try {
+      (previewerRef.current as any).chunker?.destroy?.();
+    } catch (err) {
+      debugLog('chunker destroy warning', err);
+    }
+
+    try {
+      (previewerRef.current as any).polisher?.destroy?.();
+    } catch (err) {
+      debugLog('polisher destroy warning', err);
+    }
+
+    previewerRef.current = null;
+  };
 
   // Sync orientation when modal opens
   useEffect(() => {
@@ -51,8 +121,31 @@ export const PagePreviewModal: React.FC<PagePreviewModalProps> = ({
     };
   }, [isOpen, htmlContent, orientation, settings]);
 
+  useEffect(() => {
+    if (isOpen) {
+      return;
+    }
+
+    renderRunIdRef.current += 1;
+    destroyPreviewer('modal-closed');
+    if (containerRef.current) {
+      containerRef.current.innerHTML = '';
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    return () => {
+      renderRunIdRef.current += 1;
+      destroyPreviewer('component-unmount');
+    };
+  }, []);
+
   const renderPreview = async () => {
     if (!containerRef.current) return;
+
+    const runId = ++renderRunIdRef.current;
+
+    destroyPreviewer('before-new-render');
     
     setIsRendering(true);
     
@@ -64,9 +157,23 @@ export const PagePreviewModal: React.FC<PagePreviewModalProps> = ({
     const cssVarString = Object.entries(cssVars)
       .map(([key, val]) => `${key}: ${val};`)
       .join('\n');
+    const hasHeaderOrFooter = hasCustomHeaderFooter(settings);
+    const geometry = getPreviewPageGeometry(orientation, hasHeaderOrFooter);
+    debugLog('preview geometry', {
+      runId,
+      orientation,
+      hasHeaderOrFooter,
+      marginMm: geometry.marginMm,
+      contentWidthMm: geometry.contentWidthMm,
+      maxContentWidthPx: settings.maxContentWidth,
+    });
 
     const pageRules = `
-      ${buildPageRules(settings, orientation)}
+      ${buildPageRules(settings, orientation, { marginMm: geometry.marginMm })}
+
+      :root {
+        --md-export-content-width: ${geometry.contentWidthMm}mm;
+      }
 
       /* Essential PagedJS Styles */
       .pagedjs_page {
@@ -92,6 +199,9 @@ export const PagePreviewModal: React.FC<PagePreviewModalProps> = ({
       /* Ensure content uses variables and whitespace is preserved */
       .pagedjs_page .prose-preview {
          ${cssVarString}
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
          word-wrap: break-word;
       }
       
@@ -105,7 +215,9 @@ export const PagePreviewModal: React.FC<PagePreviewModalProps> = ({
         line-height: var(--md-line-height, 1.6);
         color: var(--md-text-color, #334155);
         background-color: var(--md-bg-color, #ffffff);
-        max-width: var(--md-max-width, 900px);
+        width: 100%;
+        max-width: min(var(--md-max-width, 900px), var(--md-export-content-width));
+        box-sizing: border-box;
         margin: 0 auto;
       }
       .prose-preview h1 {
@@ -206,6 +318,8 @@ export const PagePreviewModal: React.FC<PagePreviewModalProps> = ({
     contentWrapper.style.cssText = Object.entries(cssVars)
       .map(([key, val]) => `${key}: ${val}`)
       .join('; ');
+    contentWrapper.style.width = '100%';
+    contentWrapper.style.maxWidth = `${geometry.contentWidthMm}mm`;
 
     // Run post-processing (callouts, mermaid, code labels, math) before PagedJS
     try {
@@ -220,11 +334,26 @@ export const PagePreviewModal: React.FC<PagePreviewModalProps> = ({
       const previewer = new Previewer();
       previewerRef.current = previewer;
 
-      await previewer.preview(
-        contentWrapper,
-        [stylesUrl],
-        containerRef.current!
+      const flow = await runPagedPreviewWithoutResizeObserver(() =>
+        previewer.preview(
+          contentWrapper,
+          [stylesUrl],
+          containerRef.current!
+        )
       );
+
+      if (runId !== renderRunIdRef.current) {
+        URL.revokeObjectURL(stylesUrl);
+        destroyPreviewer('stale-render-run');
+        return;
+      }
+
+      debugLog('preview flow summary', {
+        runId,
+        pages: flow?.pages?.length,
+        total: (flow as any)?.total,
+        performanceMs: flow?.performance,
+      });
 
       setIsRendering(false);
       URL.revokeObjectURL(stylesUrl);
@@ -232,6 +361,7 @@ export const PagePreviewModal: React.FC<PagePreviewModalProps> = ({
       console.error("PagedJS Preview Error:", err);
       setIsRendering(false);
       URL.revokeObjectURL(stylesUrl);
+      destroyPreviewer('preview-error');
     }
   };
 
